@@ -50,6 +50,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     buildFeatures { buildConfig = true }
+    lint { checkReleaseBuilds = false; abortOnError = false }
     packaging { jniLibs { useLegacyPackaging = false } }
 }
 

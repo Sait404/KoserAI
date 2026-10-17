@@ -74,12 +74,12 @@ class KoserAccessibilityService : AccessibilityService() {
         fun global(op: String): Boolean {
             val s = instance ?: return false
             val a = when (op) {
-                "home" -> GLOBAL_ACTION_HOME
-                "back" -> GLOBAL_ACTION_BACK
-                "recents" -> GLOBAL_ACTION_RECENTS
-                "notifications" -> GLOBAL_ACTION_NOTIFICATIONS
-                "screenshot" -> if (Build.VERSION.SDK_INT >= 28) GLOBAL_ACTION_TAKE_SCREENSHOT else return false
-                "lock" -> if (Build.VERSION.SDK_INT >= 28) GLOBAL_ACTION_LOCK_SCREEN else return false
+                "home" -> AccessibilityService.GLOBAL_ACTION_HOME
+                "back" -> AccessibilityService.GLOBAL_ACTION_BACK
+                "recents" -> AccessibilityService.GLOBAL_ACTION_RECENTS
+                "notifications" -> AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS
+                "screenshot" -> if (Build.VERSION.SDK_INT >= 28) AccessibilityService.GLOBAL_ACTION_TAKE_SCREENSHOT else return false
+                "lock" -> if (Build.VERSION.SDK_INT >= 28) AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN else return false
                 else -> return false
             }
             return s.performGlobalAction(a)
