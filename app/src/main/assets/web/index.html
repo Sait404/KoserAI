@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>KoserAI</title>
+<link rel="stylesheet" href="hud.css">
+</head>
+<body data-theme="koser" data-state="idle">
+
+<canvas id="hud"></canvas>
+<div id="scan" aria-hidden="true"></div>
+
+<!-- köşe çerçeveleri -->
+<div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+
+<header id="top">
+  <div class="brand"><b>KOSER</b><span>AI</span></div>
+  <div class="readout"><span id="clock">--:--</span><span id="mode">KOSER</span></div>
+  <button class="icon" id="btnSettings" aria-label="Ayarlar">
+    <svg viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Zm8.6-2.3.1-1.2-.1-1.2 2-1.6-2-3.4-2.4 1a8 8 0 0 0-2-1.2L15.8 3h-4l-.4 2.6a8 8 0 0 0-2 1.2L7 5.8l-2 3.4 2 1.6-.1 1.2.1 1.2-2 1.6 2 3.4 2.4-1a8 8 0 0 0 2 1.2l.4 2.6h4l.4-2.6a8 8 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6Z"/></svg>
+  </button>
+</header>
+
+<section id="stage">
+  <button id="orb" aria-label="Konuş"></button>
+  <div id="stateLabel">BEKLEMEDE</div>
+</section>
+
+<section id="feed" aria-live="polite"></section>
+<div id="partial"></div>
+
+<div id="chips"></div>
+
+<footer id="dock">
+  <button class="icon" id="btnKeyboard" aria-label="Yazarak komut ver">
+    <svg viewBox="0 0 24 24"><path d="M3 6h18v12H3zM6 9h2M10 9h2M14 9h2M18 9h0M6 12h2M10 12h2M14 12h2M8 15h8" fill="none" stroke-width="1.6"/></svg>
+  </button>
+  <button id="mic" aria-label="Konuş">
+    <svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-2.1a7 7 0 0 0 6-6.9h-2Z"/></svg>
+  </button>
+  <button class="icon" id="btnHelp" aria-label="Komutlar">
+    <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 14.5h0M9.6 9.2a2.5 2.5 0 1 1 3.6 2.3c-.8.4-1.2.9-1.2 1.8v.4" fill="none" stroke-width="1.8" stroke-linecap="round"/></svg>
+  </button>
+</footer>
+
+<form id="typeRow" autocomplete="off">
+  <input id="typeInput" placeholder="Komut yaz… (örn. saat kaç)" enterkeyhint="send">
+  <button type="submit">GÖNDER</button>
+</form>
+
+<!-- ================================================= AYARLAR -->
+<div id="settings" class="panel" hidden>
+  <div class="panelHead">
+    <button class="back" data-close>‹</button>
+    <h2>AYARLAR</h2>
+  </div>
+  <div class="panelBody">
+
+    <details class="sec" open>
+      <summary>Profil</summary>
+      <label>Sana nasıl hitap edeyim?<input data-k="userName" placeholder="efendim"></label>
+      <label>Hava durumu için şehir<input data-k="city" placeholder="İstanbul"></label>
+    </details>
+
+    <details class="sec">
+      <summary>Tema</summary>
+      <div class="themes">
+        <button class="theme t-koser" data-theme-pick="koser"><i></i><b>KOSER</b><span>Normal · mavi</span></button>
+        <button class="theme t-kizil" data-theme-pick="kizil"><i></i><b>KIZIL</b><span>Agresif · kırmızı</span></button>
+        <button class="theme t-altin" data-theme-pick="altin"><i></i><b>ALTIN</b><span>Zarif · altın</span></button>
+      </div>
+      <p class="note">Sesli olarak da değiştirebilirsin: "Kızıl moda geç", "Normal moda dön".</p>
+    </details>
+
+    <details class="sec" id="secWake">
+      <summary>Hey Koser <em id="wakeBadge" class="badge">KAPALI</em></summary>
+      <p class="note">Telefon kilitliyken veya başka uygulamadayken "Hey Koser" deyince açılır. Ses tamamen telefonda işlenir, hiçbir yere gönderilmez ve kaydedilmez.</p>
+      <div class="row" id="modelRow">
+        <div><b>Türkçe ses modeli</b><small id="modelState">İndirilmedi (yaklaşık 35 MB)</small></div>
+        <button class="btn" id="btnModel">İNDİR</button>
+      </div>
+      <div class="bar" id="modelBar" hidden><i></i></div>
+      <label>Uyandırma cümlesi
+        <input data-k="wakePhrase" id="wakePhrase" placeholder="hey koser" maxlength="40">
+        <small id="wakeErr" class="err"></small>
+      </label>
+      <p class="note">İstediğini yazabilirsin ("koser aç", "koser gel"…), ama <b>Koser</b> kelimesi mutlaka geçmeli.</p>
+      <label>Hassasiyet
+        <input type="range" min="1" max="3" step="1" data-k="wakeSensitivity" data-num>
+        <span class="scale"><span>Az yanlış uyanma</span><span>Daha kolay uyanma</span></span>
+      </label>
+      <div class="row">
+        <div><b>Sesimi öğret</b><small>Cümleyi 3 kez söyle; Koser senin sesini daha iyi tanısın.</small></div>
+        <button class="btn" id="btnTeach">ÖĞRET</button>
+      </div>
+      <div class="row">
+        <div><b>Arka planda dinle</b><small id="wakeRun">Kapalı</small></div>
+        <label class="sw"><input type="checkbox" id="wakeToggle"><i></i></label>
+      </div>
+    </details>
+
+    <details class="sec">
+      <summary>Varsayılan asistan</summary>
+      <p class="note">Koser'i telefonun dijital asistanı yaparsan, güç ya da ana ekran tuşuna uzun basınca (veya köşeden kaydırınca) Gemini yerine <b>Koser</b> açılır. "Hey Koser" de arka planda en iyi bu şekilde çalışır.</p>
+      <div class="row">
+        <div><b>Dijital asistan</b><small data-perm-text="assistant">—</small></div>
+        <button class="btn" data-perm="assistant">AYARLA</button>
+      </div>
+      <p class="note small">Açılan ekranda: <b>Dijital asistan uygulaması</b> → <b>KoserAI</b>'ı seç.</p>
+      <div class="row">
+        <div><b>Diğer uygulamaların üzerinde göster</b><small data-perm-text="overlay">—</small></div>
+        <button class="btn" data-perm="overlay">İZİN</button>
+      </div>
+    </details>
+
+    <details class="sec">
+      <summary>Yapay zekâ (sohbet)</summary>
+      <p class="note">Komut dışındaki her şey (soru, sohbet, bilgi) için Google Gemini kullanılır. Ücretsiz anahtarını al ve buraya yapıştır.</p>
+      <button class="btn wide" id="btnGetKey">ÜCRETSİZ ANAHTAR AL (aistudio.google.com)</button>
+      <label>Gemini API anahtarı<input data-k="geminiKey" type="password" placeholder="AIza…"></label>
+      <label>Model
+        <select data-k="geminiModel">
+          <option value="gemini-2.5-flash">Gemini 2.5 Flash (önerilen)</option>
+          <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash-Lite (hızlı)</option>
+          <option value="gemini-2.5-pro">Gemini 2.5 Pro (en akıllı)</option>
+        </select>
+      </label>
+    </details>
+
+    <details class="sec">
+      <summary>Televizyon</summary>
+      <label>TV türü
+        <select data-k="tvType" id="tvType">
+          <option value="none">Yok</option>
+          <option value="samsung">Samsung akıllı TV (Tizen)</option>
+          <option value="lg">LG akıllı TV (webOS)</option>
+          <option value="roku">Roku / Roku TV</option>
+          <option value="http">Kendi API'm (Home Assistant vb.)</option>
+        </select>
+      </label>
+      <label>TV adı<input data-k="tvName" placeholder="Salon TV"></label>
+      <div class="tvf" data-tv="samsung lg roku http">
+        <label>TV IP adresi<input data-k="tvIp" placeholder="192.168.1.50" inputmode="decimal"></label>
+        <p class="note small">TV'de: Ayarlar → Genel → Ağ → Ağ durumu. Telefon ve TV aynı Wi-Fi'da olmalı.</p>
+      </div>
+      <div class="tvf" data-tv="samsung lg roku http">
+        <label>MAC adresi (uzaktan açmak için)<input data-k="tvMac" placeholder="A1:B2:C3:D4:E5:F6"></label>
+      </div>
+      <div class="tvf row" data-tv="samsung lg">
+        <div><b>Güvenli bağlantı</b><small>Yeni TV'ler için açık kalsın</small></div>
+        <label class="sw"><input type="checkbox" data-k="tvSecure"><i></i></label>
+      </div>
+      <div class="tvf" data-tv="http">
+        <p class="note">Her komut için bir adres gir. Biçim: <code>YÖNTEM adres gövde</code>. Örnek:<br>
+        <code>POST http://192.168.1.10:8123/api/services/media_player/turn_on {"entity_id":"media_player.tv"}</code></p>
+        <label>Başlık (isteğe bağlı)<input data-k="httpHeader" placeholder="Authorization: Bearer ANAHTAR"></label>
+        <label>Aç<input data-k="httpPowerOn"></label>
+        <label>Kapat<input data-k="httpPowerOff"></label>
+        <label>Ses + <small>({value} = sayı)</small><input data-k="httpVolUp"></label>
+        <label>Ses −<input data-k="httpVolDown"></label>
+        <label>Sessiz<input data-k="httpMute"></label>
+        <label>Kanal +<input data-k="httpChUp"></label>
+        <label>Kanal −<input data-k="httpChDown"></label>
+      </div>
+      <div class="tvf" data-tv="samsung lg roku http">
+        <p class="note small">İlk denemede TV ekranında izin sorusu çıkarsa <b>İzin ver</b> de.</p>
+        <div class="remote">
+          <button class="btn" data-tv-test="on">AÇ</button>
+          <button class="btn" data-tv-test="off">KAPAT</button>
+          <button class="btn" data-tv-test="vol_up">SES +</button>
+          <button class="btn" data-tv-test="vol_down">SES −</button>
+          <button class="btn" data-tv-test="mute">SESSİZ</button>
+          <button class="btn" data-tv-test="ch_up">KANAL +</button>
+        </div>
+        <small id="tvResult" class="note"></small>
+        <button class="btn ghost wide" id="btnTvReset">EŞLEŞMEYİ SIFIRLA</button>
+      </div>
+    </details>
+
+    <details class="sec">
+      <summary>WhatsApp</summary>
+      <div class="row">
+        <div><b>Mesajı otomatik gönder</b><small>Kapalıysa mesaj hazırlanır, Gönder'e sen basarsın.</small></div>
+        <label class="sw"><input type="checkbox" data-k="autoSend"><i></i></label>
+      </div>
+      <div class="row">
+        <div><b>Otomatik gönderme izni</b><small data-perm-text="access">—</small></div>
+        <button class="btn" id="btnAccess">İZİN</button>
+      </div>
+      <div class="row">
+        <div><b>Rehber</b><small data-perm-text="contacts">—</small></div>
+        <button class="btn" data-perm="contacts">İZİN</button>
+      </div>
+    </details>
+
+    <details class="sec">
+      <summary>Ses</summary>
+      <label>Konuşma hızı<input type="range" min="0.6" max="1.6" step="0.05" data-k="ttsRate" data-num></label>
+      <label>Ses tonu<input type="range" min="0.6" max="1.5" step="0.05" data-k="ttsPitch" data-num></label>
+      <button class="btn wide" id="btnTestVoice">SESİ DENE</button>
+      <p class="note small" id="ttsWarn" hidden>Telefonda Türkçe ses paketi yok gibi görünüyor: Ayarlar → Metin okuma → Google → Türkçe sesi indir.</p>
+    </details>
+
+    <details class="sec">
+      <summary>İzinler</summary>
+      <div class="row"><div><b>Mikrofon</b><small data-perm-text="mic">—</small></div><button class="btn" data-perm="mic">İZİN</button></div>
+      <div class="row"><div><b>Telefon araması</b><small data-perm-text="phone">—</small></div><button class="btn" data-perm="phone">İZİN</button></div>
+      <div class="row"><div><b>Bildirimler</b><small data-perm-text="notif">—</small></div><button class="btn" data-perm="notif">İZİN</button></div>
+      <div class="row"><div><b>Pil kısıtlaması yok</b><small data-perm-text="battery">—</small></div><button class="btn" data-perm="battery">AYARLA</button></div>
+    </details>
+
+    <details class="sec">
+      <summary>Hakkında</summary>
+      <div class="about">
+        <div class="aboutLogo">KOSER<span>AI</span></div>
+        <p>Sürüm <span id="ver">1.0.0</span></p>
+        <p class="maker">Yapımcı: <b>Sait</b></p>
+        <button class="btn ghost wide" id="btnPrivacy">GİZLİLİK POLİTİKASI</button>
+        <button class="btn ghost wide" id="btnRestartOnboard">KURULUMU TEKRARLA</button>
+      </div>
+    </details>
+  </div>
+</div>
+
+<!-- ================================================= KOMUTLAR -->
+<div id="help" class="panel" hidden>
+  <div class="panelHead"><button class="back" data-close>‹</button><h2>KOMUTLAR</h2></div>
+  <div class="panelBody" id="helpBody"></div>
+</div>
+
+<!-- ================================================= GİZLİLİK -->
+<div id="privacy" class="panel" hidden>
+  <div class="panelHead"><button class="back" data-close>‹</button><h2>GİZLİLİK</h2></div>
+  <div class="panelBody prose" id="privacyBody"></div>
+</div>
+
+<!-- ================================================= ÖĞRETME -->
+<div id="teach" class="modal" hidden>
+  <div class="card">
+    <h3>SESİNİ ÖĞRENİYORUM</h3>
+    <div class="dots"><i></i><i></i><i></i></div>
+    <p id="teachMsg">Hazırlanıyor…</p>
+    <p id="teachHeard" class="note"></p>
+    <button class="btn wide" id="teachClose">KAPAT</button>
+  </div>
+</div>
+
+<!-- ================================================= ERİŞİLEBİLİRLİK AÇIKLAMASI -->
+<div id="accessModal" class="modal" hidden>
+  <div class="card">
+    <h3>OTOMATİK GÖNDERME</h3>
+    <p>WhatsApp mesajını senin yerine göndermem için Android'in <b>Erişilebilirlik</b> iznine ihtiyacım var.</p>
+    <ul>
+      <li>Yalnızca WhatsApp ekranında, yalnızca sen bir mesaj gönderttiğinde <b>Gönder</b> düğmesine basarım.</li>
+      <li>Sesli komutla ekran görüntüsü alma ve telefonu kilitleme için de kullanırım.</li>
+      <li>Ekrandaki hiçbir bilgiyi okumam, kaydetmem, hiçbir yere göndermem.</li>
+    </ul>
+    <p class="note small">Açılan ekranda: Yüklü uygulamalar → <b>KoserAI Otomatik Gönderme</b> → Aç.</p>
+    <div class="two">
+      <button class="btn ghost" id="accessNo">VAZGEÇ</button>
+      <button class="btn" id="accessYes">KABUL ET</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================= İLK KURULUM -->
+<div id="onboard" hidden>
+  <div class="ob-step" data-step="0">
+    <div class="ob-logo"><canvas id="obOrb" width="260" height="260"></canvas></div>
+    <h1>KOSER<span>AI</span></h1>
+    <p class="ob-sub">Kişisel yapay zekâ asistanın</p>
+    <p class="ob-maker">Yapımcı: Sait</p>
+    <button class="btn big" data-next>BAŞLAT</button>
+  </div>
+  <div class="ob-step" data-step="1" hidden>
+    <h2>Sana nasıl hitap edeyim?</h2>
+    <input id="obName" placeholder="Örn. Sait, efendim, patron" maxlength="24">
+    <button class="btn big" data-next>DEVAM</button>
+  </div>
+  <div class="ob-step" data-step="2" hidden>
+    <h2>İzinler</h2>
+    <p class="ob-text">Koser'in senin için iş yapabilmesi için bazı izinler gerekiyor. Hepsini istediğin zaman ayarlardan kapatabilirsin.</p>
+    <div class="row"><div><b>Mikrofon</b><small>Sesli komutları duymak için. Zorunlu.</small></div><button class="btn" data-perm="mic">İZİN</button></div>
+    <div class="row"><div><b>Rehber</b><small>"Ahmet'e WhatsApp'tan yaz", "annemi ara" için. Rehberin telefondan çıkmaz.</small></div><button class="btn" data-perm="contacts">İZİN</button></div>
+    <div class="row"><div><b>Telefon</b><small>Doğrudan arama yapabilmek için.</small></div><button class="btn" data-perm="phone">İZİN</button></div>
+    <div class="row"><div><b>Bildirimler</b><small>"Hey Koser" dinlerken göstermek için.</small></div><button class="btn" data-perm="notif">İZİN</button></div>
+    <button class="btn big" data-next>DEVAM</button>
+  </div>
+  <div class="ob-step" data-step="3" hidden>
+    <h2>Gemini yerine Koser</h2>
+    <p class="ob-text">Koser'i telefonun dijital asistanı yap: güç / ana ekran tuşuna uzun basınca Koser açılsın.</p>
+    <div class="row"><div><b>Varsayılan asistan</b><small data-perm-text="assistant">—</small></div><button class="btn" data-perm="assistant">AYARLA</button></div>
+    <p class="ob-text">"Hey Koser" ile eller serbest uyandırmayı ayarlardaki <b>Hey Koser</b> bölümünden açabilirsin.</p>
+    <button class="btn big" data-next>DEVAM</button>
+  </div>
+  <div class="ob-step" data-step="4" hidden>
+    <h2>Görünümünü seç</h2>
+    <div class="themes">
+      <button class="theme t-koser" data-theme-pick="koser"><i></i><b>KOSER</b><span>Normal</span></button>
+      <button class="theme t-kizil" data-theme-pick="kizil"><i></i><b>KIZIL</b><span>Agresif</span></button>
+      <button class="theme t-altin" data-theme-pick="altin"><i></i><b>ALTIN</b><span>Zarif</span></button>
+    </div>
+    <button class="btn big" data-finish>HAZIRIM</button>
+  </div>
+</div>
+
+<div id="toast" hidden></div>
+
+<script src="hud.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

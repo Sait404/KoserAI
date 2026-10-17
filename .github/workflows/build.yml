@@ -1,0 +1,62 @@
+name: APK derle
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Android SDK 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" > /dev/null
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.14.3"
+
+      - name: Derle
+        id: build
+        run: |
+          set -o pipefail
+          gradle assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log
+
+      - name: Sonucu ci-output dalına yükle
+        if: always()
+        run: |
+          mkdir -p out
+          cp build.log out/ || true
+          V=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
+            cp app/build/outputs/apk/release/app-release.apk "out/KoserAI-v$V.apk"
+            echo "OK" > out/STATUS
+          else
+            echo "FAIL" > out/STATUS
+          fi
+          echo "${GITHUB_SHA}" > out/COMMIT
+          cd out
+          git init -q -b ci-output
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add -A
+          git commit -qm "Derleme ${GITHUB_SHA::7}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" ci-output
+
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: KoserAI-apk
+          path: app/build/outputs/apk/release/*.apk

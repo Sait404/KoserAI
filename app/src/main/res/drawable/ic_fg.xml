@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- dış halka -->
+    <path android:strokeColor="#35E0FF" android:strokeWidth="2.2" android:fillColor="#00000000"
+        android:pathData="M54,24a30,30 0,1 1,0 60a30,30 0,1 1,0 -60z" />
+    <!-- kesik iç halka -->
+    <path android:strokeColor="#9AF3FF" android:strokeWidth="3" android:fillColor="#00000000"
+        android:strokeLineCap="round"
+        android:pathData="M54,32a22,22 0,0 1,20.9 15.2M76,54a22,22 0,0 1,-15.2 20.9M54,76a22,22 0,0 1,-20.9 -15.2M32,54a22,22 0,0 1,15.2 -20.9" />
+    <!-- K harfi -->
+    <path android:fillColor="#E8FCFF"
+        android:pathData="M45,40h5.5v11.2L60.6,40h6.6L56.6,51.6L67.8,68h-6.7L52.8,55.6l-2.3,2.5V68H45z" />
+</vector>

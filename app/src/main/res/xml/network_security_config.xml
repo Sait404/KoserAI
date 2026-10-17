@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- İnternet: yalnızca HTTPS. Ev ağındaki TV'ler için şifresiz yerel bağlantıya izin verilir
+         (TV'ler http/ws kullanır; adresleri kullanıcı girer). -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
