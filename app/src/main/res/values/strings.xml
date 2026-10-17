@@ -1,6 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">KoserAI</string>
-    <string name="accessibility_label">KoserAI Otomatik Gönderme</string>
-    <string name="accessibility_desc">KoserAI, sesli komutla hazırladığınız WhatsApp mesajındaki Gönder düğmesine sizin yerinize basmak için bu izni kullanır. Yalnızca WhatsApp ekranını görür, yalnızca siz bir mesaj gönderttiğinizde çalışır ve hiçbir ekran içeriğini kaydetmez ya da başka bir yere iletmez.</string>
 </resources>

@@ -10,6 +10,7 @@ class KoserApp : Application() {
         super.onCreate()
         instance = this
         Prefs.init(this)
+        com.sait.koserai.data.Store.init(this)
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(
             NotificationChannel(CH_WAKE, "Hey Koser dinleme", NotificationManager.IMPORTANCE_LOW).apply {

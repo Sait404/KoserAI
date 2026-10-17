@@ -44,6 +44,13 @@ object Prefs {
         put("httpChUp", "")
         put("httpChDown", "")
         put("notes", JSONArray())
+        put("persona", "koser")
+        put("personas", JSONObject())
+        put("liveModel", "")
+        put("bargeIn", true)
+        put("autoEndSec", 45)
+        put("greetOnWake", true)
+        put("shortcuts", JSONArray())
     }
 
     fun init(ctx: Context) {

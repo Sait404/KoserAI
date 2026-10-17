@@ -14,4 +14,4 @@ fi
 ls "$SDK/platforms" || true
 java -version
 gradle --version
-gradle assembleFullRelease assembleLiteRelease --no-daemon --stacktrace
+gradle assembleRelease --no-daemon --stacktrace

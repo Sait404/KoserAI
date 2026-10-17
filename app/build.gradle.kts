@@ -11,8 +11,8 @@ android {
         applicationId = "com.sait.koserai"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "2.0.0"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
     }
 
@@ -45,12 +45,6 @@ android {
         }
     }
 
-    flavorDimensions += "dist"
-    productFlavors {
-        create("full") { dimension = "dist" }
-        create("lite") { dimension = "dist"; versionNameSuffix = "-lite" }
-    }
-
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -72,5 +66,10 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     // Çevrimdışı "Hey Koser" uyandırma kelimesi algılama
     implementation("com.alphacephei:vosk-android:0.3.47")
+    // Kamera ile görme
+    implementation("androidx.camera:camera-core:1.4.2")
+    implementation("androidx.camera:camera-camera2:1.4.2")
+    implementation("androidx.camera:camera-lifecycle:1.4.2")
+    implementation("androidx.camera:camera-view:1.4.2")
     implementation("net.java.dev.jna:jna:5.13.0@aar")
 }

@@ -322,6 +322,7 @@ class WakeWordService : Service() {
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        try { com.sait.koserai.data.Reminders.rescheduleAll(context) } catch (_: Exception) {}
         if (!Prefs.bool("wakeEnabled")) return
         if (!WakeWordService.tryStart(context)) WakeWordService.notifyNeedOpen(context)
     }

@@ -18,7 +18,6 @@ import android.provider.AlarmClock
 import android.provider.MediaStore
 import android.provider.Settings
 import android.view.KeyEvent
-import com.sait.koserai.access.KoserAccessibilityService
 import com.sait.koserai.tv.TvController
 import com.sait.koserai.tv.TvException
 import org.json.JSONArray
@@ -234,12 +233,8 @@ class Brain(private val act: Activity, private val onAsync: (Reply) -> Unit) {
         val pkg = Apps.whatsappPackage(ctx) ?: return Reply("Telefonunda WhatsApp yüklü değil.")
         val num = Contacts.toInternational(c.number)
         val i = Intent(Intent.ACTION_VIEW, Uri.parse("https://api.whatsapp.com/send?phone=$num&text=" + Net.enc(msg))).setPackage(pkg)
-        val auto = Prefs.bool("autoSend") && KoserAccessibilityService.isEnabled(ctx)
-        if (auto) KoserAccessibilityService.armWhatsAppSend { onAsync(Reply("Mesaj gönderildi.")) }
         start(i)
-        return if (auto) Reply("${c.name} kişisine \"$msg\" gönderiyorum.")
-        else Reply("${c.name} kişisine mesajı hazırladım, Gönder'e basman yeterli." +
-                if (Prefs.bool("autoSend")) " Benim göndermem için ayarlardan otomatik gönderme iznini aç." else "")
+        return Reply("${c.name} kişisine mesajı hazırladım, Gönder'e basman yeterli.")
     }
 
     // ------------------------------------------------------------------ arama / SMS
@@ -328,13 +323,7 @@ class Brain(private val act: Activity, private val onAsync: (Reply) -> Unit) {
         return Reply("Şarj yüzde $p" + if (charging) ", şu an şarj oluyor." else ".")
     }
 
-    private suspend fun global(op: String): Reply {
-        if (!KoserAccessibilityService.isEnabled(ctx) || KoserAccessibilityService.instance == null)
-            return Reply("Bunun için ayarlardan Koser'in erişilebilirlik iznini açman gerekiyor.", ui = JSONObject().put("type", "perm").put("name", "access"))
-        if (op == "screenshot") act.moveTaskToBack(true)
-        val ok = if (op == "screenshot") { kotlinx.coroutines.delay(700); KoserAccessibilityService.global(op) } else KoserAccessibilityService.global(op)
-        return Reply(if (!ok) "Bunu bu telefonda yapamadım." else when (op) { "screenshot" -> "Ekran görüntüsü alındı."; "lock" -> "Telefon kilitlendi."; else -> "Tamam." })
-    }
+    private fun global(op: String): Reply = Reply("Bu işlemi bu sürümde yapamıyorum.")
 
     private fun settingsPanel(w: String): Reply {
         val i = when (w) {

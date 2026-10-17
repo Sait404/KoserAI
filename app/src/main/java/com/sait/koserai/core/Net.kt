@@ -37,6 +37,20 @@ object Weather {
         95 to "gök gürültülü fırtınalı", 96 to "dolu ve fırtınalı", 99 to "dolu ve fırtınalı"
     )
 
+    /** Ana ekran kartı için: anlık sıcaklık ve durum */
+    suspend fun current(city: String): JSONObject {
+        val geo = Net.getJson("https://geocoding-api.open-meteo.com/v1/search?count=1&language=tr&name=${Net.enc(city)}")
+        val res = geo.optJSONArray("results")?.optJSONObject(0) ?: throw RuntimeException("Şehir bulunamadı: $city")
+        val w = Net.getJson("https://api.open-meteo.com/v1/forecast?latitude=${res.getDouble("latitude")}&longitude=${res.getDouble("longitude")}" +
+            "&timezone=auto&current=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min&forecast_days=1")
+        val c = w.getJSONObject("current")
+        val code = c.getInt("weather_code")
+        val d = w.getJSONObject("daily")
+        return JSONObject().put("city", res.optString("name", city)).put("temp", Math.round(c.getDouble("temperature_2m")))
+            .put("code", code).put("isDay", c.optInt("is_day", 1) == 1).put("desc", (CODES[code] ?: "değişken").replaceFirstChar { it.titlecase(java.util.Locale("tr")) })
+            .put("max", Math.round(d.getJSONArray("temperature_2m_max").getDouble(0))).put("min", Math.round(d.getJSONArray("temperature_2m_min").getDouble(0)))
+    }
+
     suspend fun describe(city: String, tomorrow: Boolean): String {
         val geo = Net.getJson("https://geocoding-api.open-meteo.com/v1/search?count=1&language=tr&name=${Net.enc(city)}")
         val res = geo.optJSONArray("results")?.optJSONObject(0) ?: return "$city diye bir yer bulamadım."
