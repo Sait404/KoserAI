@@ -133,6 +133,7 @@ class MainActivity : ComponentActivity() {
             settings.mediaPlaybackRequiresUserGesture = false
             settings.allowFileAccess = false
             settings.allowContentAccess = false
+            settings.textZoom = 100 // telefonun yazı boyutu arayüzü bozmasın
             webViewClient = object : WebViewClient() {
                 override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? = loader.shouldInterceptRequest(request.url)
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {

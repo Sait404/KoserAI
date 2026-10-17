@@ -77,7 +77,7 @@ object Live {
     private var ctx: Context? = null
     private var models = listOf<String>()
     private var modelIdx = 0
-    private var minimal = false
+    private var level = 0
     private var resumeHandle: String? = null
     private var reconnects = 0
     private var mic: Mic? = null
@@ -162,7 +162,7 @@ object Live {
     internal fun begin(service: Context) {
         ctx = service
         userStopped = false; switching = false; restartRequested = false; endRequested = false
-        resumeHandle = null; reconnects = 0; minimal = false; modelIdx = 0
+        resumeHandle = null; reconnects = 0; level = Prefs.int("liveLevel").coerceIn(0, 2); modelIdx = 0
         models = (listOf(Prefs.str("liveModel")).filter { it.isNotBlank() } + FALLBACK_MODELS).distinct()
         WakeWordService.pause()
         AudioRoute.enter(service)
@@ -178,7 +178,7 @@ object Live {
         val req = Request.Builder().url("$HOST?key=$key").build()
         ws = client.newWebSocket(req, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
-                webSocket.send(setupJson().toString())
+                webSocket.send(setupJson(models[modelIdx], level).toString())
             }
             override fun onMessage(webSocket: WebSocket, text: String) { if (webSocket === ws) handle(text) }
             override fun onMessage(webSocket: WebSocket, bytes: ByteString) { if (webSocket === ws) handle(bytes.utf8()) }
@@ -193,20 +193,24 @@ object Live {
     private fun closed(code: Int, reason: String, t: Throwable?) {
         if (userStopped || !running) return
         if (switching) { switching = false; main.post { connect() }; return }
-        val r = reason.lowercase()
         if (!setupDone) {
-            when {
-                r.contains("api key") || r.contains("api_key") || r.contains("permission") || r.contains("unauthenticated") ->
-                    return fail("key", "Gemini anahtarı geçersiz ya da yetkisiz. Ayarlar'dan anahtarı kontrol et.")
-                r.contains("quota") || r.contains("exhausted") || r.contains("rate") ->
-                    return fail("quota", "Gemini ücretsiz kullanım sınırı şu an dolu. Biraz sonra tekrar dene.")
-                (r.contains("not found") || r.contains("not supported") || r.contains("model")) && modelIdx < models.size - 1 -> {
-                    modelIdx++; main.postDelayed({ connect() }, 300); return
+            when (classify(code, reason, t)) {
+                "key" -> return fail("key", "Gemini anahtarı geçersiz ya da yetkisiz. Ayarlar'dan anahtarı yeniden test et." + detail(reason))
+                "model" -> {
+                    if (modelIdx < models.size - 1) { modelIdx++; level = 0; main.postDelayed({ connect() }, 300); return }
+                    return fail("model", "Bu anahtarla canlı ses modeli açılamadı." + detail(reason))
                 }
-                (code == 1007 || r.contains("invalid")) && !minimal -> { minimal = true; main.postDelayed({ connect() }, 300); return }
-                t != null && reconnects < 2 -> { reconnects++; main.postDelayed({ connect() }, 1200); return }
-                t != null -> return fail("net", "Gemini'ye bağlanamadım. İnternet bağlantını kontrol et.")
-                else -> return fail("setup", "Gemini bağlantıyı kabul etmedi" + (if (reason.isNotBlank()) ": $reason" else "."))
+                "invalid" -> {
+                    if (level < 2) { level++; main.postDelayed({ connect() }, 300); return }
+                    if (modelIdx < models.size - 1) { modelIdx++; level = 0; main.postDelayed({ connect() }, 300); return }
+                    return fail("setup", "Gemini bağlantı ayarlarını kabul etmedi." + detail(reason))
+                }
+                "quota" -> return fail("quota", "Gemini kullanım sınırına takıldı. Bir dakika bekleyip tekrar dene." + detail(reason))
+                "net" -> {
+                    if (reconnects < 2) { reconnects++; main.postDelayed({ connect() }, 1200); return }
+                    return fail("net", "Gemini'ye bağlanamadım. İnternet bağlantını kontrol et." + detail(t?.message ?: reason))
+                }
+                else -> return fail("setup", "Gemini bağlantıyı kapattı." + detail(reason.ifBlank { "kod $code" }))
             }
         }
         // konuşma sırasında koptu: kaldığı yerden devam etmeyi dene
@@ -215,6 +219,22 @@ object Live {
             setState("connecting")
             main.postDelayed({ if (running && !userStopped) connect() }, 600L * reconnects)
         } else fail("lost", "Bağlantı koptu.")
+    }
+
+    private fun detail(r: String) = if (r.isBlank()) "" else " (Google: ${r.take(180)})"
+
+    /** Google'ın kapanış nedenini sınıflandır */
+    internal fun classify(code: Int, reason: String, t: Throwable?): String {
+        val r = reason.lowercase()
+        return when {
+            r.contains("api key not valid") || r.contains("api_key_invalid") || r.contains("unauthenticated") || r.contains("invalid api key") ||
+                (r.contains("api key") && !r.contains("model")) -> "key"
+            r.contains("not found") || r.contains("not supported") || r.contains("unsupported") || r.contains("is not available") || r.contains("does not exist") -> "model"
+            r.contains("quota") || r.contains("resource_exhausted") || r.contains("resource exhausted") || r.contains("rate limit") || r.contains("too many requests") -> "quota"
+            code == 1007 || r.contains("invalid") || r.contains("unknown name") || r.contains("cannot find field") -> "invalid"
+            t != null && reason.isBlank() -> "net"
+            else -> "other"
+        }
     }
 
     private fun fail(code: String, msg: String) {
@@ -242,20 +262,23 @@ object Live {
 
     private fun persona() = Persona.active()
 
-    private fun setupJson(): JSONObject {
+    private fun setupJson(model: String, lvl: Int): JSONObject {
         val p = persona()
         val setup = JSONObject()
-            .put("model", "models/" + models[modelIdx])
+            .put("model", "models/$model")
             .put("generationConfig", JSONObject()
                 .put("responseModalities", JSONArray().put("AUDIO"))
                 .put("speechConfig", JSONObject().put("voiceConfig", JSONObject().put("prebuiltVoiceConfig", JSONObject().put("voiceName", p.voice)))))
             .put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", systemPrompt(p)))))
-            .put("tools", JSONArray()
-                .put(JSONObject().put("googleSearch", JSONObject()))
-                .put(JSONObject().put("functionDeclarations", Tools.declarations())))
-            .put("inputAudioTranscription", JSONObject())
-            .put("outputAudioTranscription", JSONObject())
-        if (!minimal) {
+        val tools = JSONArray()
+        if (lvl < 2) tools.put(JSONObject().put("googleSearch", JSONObject()))
+        tools.put(JSONObject().put("functionDeclarations", Tools.declarations()))
+        setup.put("tools", tools)
+        if (lvl < 2) {
+            setup.put("inputAudioTranscription", JSONObject())
+            setup.put("outputAudioTranscription", JSONObject())
+        }
+        if (lvl == 0) {
             setup.put("realtimeInputConfig", JSONObject().put("automaticActivityDetection", JSONObject().put("silenceDurationMs", 700)))
             setup.put("sessionResumption", resumeHandle?.let { JSONObject().put("handle", it) } ?: JSONObject())
             setup.put("contextWindowCompression", JSONObject().put("slidingWindow", JSONObject()))
@@ -316,6 +339,7 @@ object Live {
         setupDone = true
         reconnects = 0
         Prefs.put("liveModel", models[modelIdx])
+        Prefs.put("liveLevel", level)
         main.post {
             val c = ctx ?: return@post
             if (mic == null) {
@@ -514,13 +538,47 @@ object Live {
         } catch (e: Exception) {
             return@withContext KeyResult(false, "İnternete bağlanılamadı. Bağlantını kontrol edip tekrar dene.", null, emptyList())
         }
-        val pref = FALLBACK_MODELS.firstOrNull { it in live }
-            ?: live.filter { !it.contains("translate") }.firstOrNull { it.contains("live") || it.contains("native-audio") }
-            ?: live.firstOrNull()
-        if (pref == null) return@withContext KeyResult(true, "Anahtar geçerli ama bu anahtarla canlı ses modeli görünmüyor. Yine de varsayılan model denenecek.", null, live)
-        Prefs.put("geminiKey", key)
-        Prefs.put("liveModel", pref)
-        KeyResult(true, "Anahtar çalışıyor ✓ Canlı ses modeli: $pref", pref, live)
+        // listede görünenleri ve bilinen modelleri sırayla GERÇEKTEN dene
+        val candidates = (FALLBACK_MODELS.filter { it in live } +
+            live.filter { !it.contains("translate") && (it.contains("live") || it.contains("native-audio")) } +
+            FALLBACK_MODELS).distinct().take(6)
+        var last = ""
+        for (m in candidates) {
+            for (lvl in 0..2) {
+                val (res, why) = probe(key, m, lvl)
+                if (res == "ok") {
+                    Prefs.put("liveModel", m); Prefs.put("liveLevel", lvl)
+                    return@withContext KeyResult(true, "Anahtar çalışıyor ✓ Canlı ses bağlantısı kuruldu ($m).", m, live)
+                }
+                last = why
+                when (res) {
+                    "key" -> return@withContext KeyResult(false, "Bu anahtar geçersiz. AI Studio'dan yeniden kopyala." + detail(why), null, live)
+                    "quota" -> return@withContext KeyResult(false, "Anahtar geçerli ama Gemini şu an kullanım sınırı veriyor. Bir dakika sonra tekrar dene." + detail(why), null, live)
+                    "invalid" -> continue
+                    else -> break
+                }
+            }
+        }
+        KeyResult(false, "Anahtar geçerli ama canlı ses bağlantısı kurulamadı. Bu mesajın ekran görüntüsünü gönder." + detail(last), null, live)
+    }
+
+    /** Tek bir model/ayar ile gerçek bağlantı kurmayı dener. ("ok"|"key"|"model"|"quota"|"invalid"|"net"|"other", neden) */
+    private suspend fun probe(key: String, model: String, lvl: Int): Pair<String, String> {
+        val done = kotlinx.coroutines.CompletableDeferred<Pair<String, String>>()
+        val w = client.newWebSocket(Request.Builder().url("$HOST?key=$key").build(), object : WebSocketListener() {
+            override fun onOpen(webSocket: WebSocket, response: Response) { webSocket.send(setupJson(model, lvl).toString()) }
+            private fun msg(t: String) { if (t.contains("setupComplete")) done.complete("ok" to "") }
+            override fun onMessage(webSocket: WebSocket, text: String) = msg(text)
+            override fun onMessage(webSocket: WebSocket, bytes: ByteString) = msg(bytes.utf8())
+            override fun onClosing(webSocket: WebSocket, code: Int, reason: String) { done.complete(classify(code, reason, null) to "[$code] $reason"); webSocket.close(1000, null) }
+            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                val why = (response?.let { "HTTP ${it.code} ${it.message}" } ?: "") + " " + (t.message ?: "")
+                done.complete(classify(response?.code ?: -1, why, t) to why.trim())
+            }
+        })
+        val r = kotlinx.coroutines.withTimeoutOrNull(12_000) { done.await() } ?: ("net" to "zaman aşımı")
+        try { w.close(1000, "test") } catch (_: Exception) { w.cancel() }
+        return r
     }
 }
 

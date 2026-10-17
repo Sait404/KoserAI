@@ -507,7 +507,7 @@
 
   // ================================================================ bildirim
   let toastT = 0;
-  function toast(t) { const el = $('#toast'); el.textContent = t; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => (el.hidden = true), 3600); }
+  function toast(t) { const el = $('#toast'); el.textContent = t; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => (el.hidden = true), t.length > 80 ? 8000 : 3600); }
 
   try { const info = JSON.parse(N.appInfo()); $('#ver').textContent = info.version; $('#verD').textContent = info.version; } catch (e) {}
 
