@@ -371,7 +371,7 @@ class MainActivity : ComponentActivity() {
         @JavascriptInterface fun testVoice() = ui { voice.speak("Merhaba ${Prefs.str("userName").ifBlank { "efendim" }}. Ben Koser. Sistemler hazır.") { goIdle() } }
         @JavascriptInterface fun openUrl(u: String) = ui { if (u.startsWith("https://")) safeStart(Intent(Intent.ACTION_VIEW, Uri.parse(u))) }
         @JavascriptInterface fun setPanelOpen(b: Boolean) { panelOpen = b }
-        @JavascriptInterface fun appInfo(): String = JSONObject().put("version", BuildConfig.VERSION_NAME).put("maker", "Sait").toString()
+        @JavascriptInterface fun appInfo(): String = JSONObject().put("version", BuildConfig.VERSION_NAME).put("maker", "Sait").put("lite", BuildConfig.FLAVOR == "lite").toString()
         @JavascriptInterface fun vibrate() = ui {
             try { getSystemService(android.os.Vibrator::class.java)?.vibrate(android.os.VibrationEffect.createOneShot(18, 80)) } catch (_: Exception) {}
         }

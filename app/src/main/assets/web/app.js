@@ -284,7 +284,15 @@
   function tick() { const d = new Date(); $('#clock').textContent = d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }); }
   setInterval(tick, 10000); tick();
 
-  try { $('#ver').textContent = JSON.parse(N.appInfo()).version; } catch (e) {}
+  try {
+    const info = JSON.parse(N.appInfo());
+    $('#ver').textContent = info.version;
+    if (info.lite) {
+      // Lite: otomatik gönderme yok, mesaj hazırlanır ve Gönder'e kullanıcı basar
+      $('#btnAccess').closest('.row').querySelector('small').textContent = 'Bu sürümde yok (Play Store sürümünde olacak)';
+      $('#btnAccess').hidden = true;
+    }
+  } catch (e) {}
 
   // ---------- yerelden gelen olaylar
   window.Koser = {

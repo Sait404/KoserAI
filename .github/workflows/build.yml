@@ -35,8 +35,9 @@ jobs:
           mkdir -p out
           cp build.log out/ || true
           V=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
-          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
-            cp app/build/outputs/apk/release/app-release.apk "out/KoserAI-v$V.apk"
+          if [ -f app/build/outputs/apk/full/release/app-full-release.apk ]; then
+            cp app/build/outputs/apk/full/release/app-full-release.apk "out/KoserAI-v$V.apk"
+            cp app/build/outputs/apk/lite/release/app-lite-release.apk "out/KoserAI-v$V-lite.apk" || true
             echo "OK" > out/STATUS
           else
             echo "FAIL" > out/STATUS
@@ -54,4 +55,4 @@ jobs:
         if: success()
         with:
           name: KoserAI-apk
-          path: app/build/outputs/apk/release/*.apk
+          path: app/build/outputs/apk/*/release/*.apk

@@ -45,6 +45,12 @@ android {
         }
     }
 
+    flavorDimensions += "dist"
+    productFlavors {
+        create("full") { dimension = "dist" }
+        create("lite") { dimension = "dist"; versionNameSuffix = "-lite" }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
