@@ -559,8 +559,8 @@ class MainActivity : ComponentActivity() {
         // ---- Hey Koser
         @JavascriptInterface fun downloadModel() = ui {
             VoskModel.download(this@MainActivity,
-                progress = { p -> emit(JSONObject().put("type", "model").put("progress", p)) },
-                done = { err -> emit(JSONObject().put("type", "model").put("done", true).put("error", err ?: "")); main.post { pushPerms() } })
+                progress = { p -> emit(JSONObject().put("type", "vosk").put("progress", p)) },
+                done = { err -> emit(JSONObject().put("type", "vosk").put("done", true).put("error", err ?: "")); main.post { pushPerms() } })
             pushPerms()
         }
         @JavascriptInterface fun deleteModel() = ui { Prefs.put("wakeEnabled", false); WakeWordService.stop(this@MainActivity); VoskModel.delete(this@MainActivity); pushPerms() }
