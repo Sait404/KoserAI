@@ -118,7 +118,7 @@ class Brain(private val act: Activity, private val onAsync: (Reply) -> Unit) {
             is Cmd.ReadNotes -> {
                 val arr = Prefs.all().optJSONArray("notes") ?: JSONArray()
                 if (arr.length() == 0) Reply("Hiç notun yok.")
-                else Reply("${arr.length()} notun var. " + (0 until arr.length()).takeLast(5).mapIndexed { i, k -> "${i + 1}: ${arr.getJSONObject(k).optString("text")}" }.joinToString(". ") + ".")
+                else Reply("${arr.length()} notun var. " + (0 until arr.length()).toList().takeLast(5).mapIndexed { i, k -> "${i + 1}: ${arr.getJSONObject(k).optString("text")}" }.joinToString(". ") + ".")
             }
             is Cmd.ClearNotes -> { Prefs.put("notes", JSONArray()); Reply("Tüm notlarını sildim.") }
             is Cmd.SettingsPanel -> settingsPanel(cmd.which)
