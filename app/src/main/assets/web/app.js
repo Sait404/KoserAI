@@ -34,9 +34,8 @@
     ORB.setPersona(p.id);
     $$('.pName').forEach((e) => (e.textContent = p.name));
     $$('.pTag').forEach((e) => (e.textContent = p.tagline));
-    $('#motto').innerHTML = MOTTO[p.id] || MOTTO.koser;
-    $('#qBy').textContent = '- ' + cap(p.name);
-    $('#micLabel').textContent = liveState === 'idle' ? `${dat(p.name)} sor...` : $('#micLabel').textContent;
+    $('#motto').innerHTML = `Dokun ya da <b>"${esc(cap(s.wakePhrase || 'hey koser'))}"</b> de`;
+    $('#micLabel').textContent = liveState === 'idle' ? `${dat(p.name)} sor` : $('#micLabel').textContent;
     $$('[data-k]').forEach((el) => {
       const k = el.dataset.k; if (!(k in s)) return;
       if (document.activeElement === el) return;
@@ -210,38 +209,42 @@
   function fmtT(ms) { return new Date(ms).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }); }
   function renderCards() {
     // takvim
-    let cal = 'Bugünün planlarını gör';
-    if (!PERMS.calendar) cal = 'Takvim izni ver';
-    else if (DATA.today && DATA.today.length) {
-      const next = DATA.today.find((e) => e.end > Date.now()) || DATA.today[0];
-      cal = `Bugün ${DATA.today.length} etkinlik · ${next.allDay ? 'tüm gün' : fmtT(next.begin)} ${next.title}`;
-    } else cal = 'Bugün plan yok';
-    $('#calSub').textContent = cal;
+    if (!PERMS.calendar) { $('#calN').textContent = '—'; $('#calSub').textContent = 'İzin ver'; }
+    else {
+      const today = DATA.today || [];
+      const next = today.find((e) => e.end > Date.now());
+      $('#calN').textContent = today.length;
+      $('#calSub').textContent = next ? (next.allDay ? '' : fmtT(next.begin) + ' ') + next.title : (today.length ? 'Bitti' : 'Plan yok');
+    }
     // görevler
     const open = (DATA.tasks || []).filter((t) => !t.done);
-    $('#taskSub').textContent = open.length ? `${open.length} bekleyen · ${open[0].title}` : 'Bekleyen iş yok';
+    $('#taskN').textContent = open.length;
+    $('#taskSub').textContent = open.length ? open[0].title : 'Hepsi tamam';
     // hava
     if (WX && !WX.error) {
-      $('#wxSub').textContent = `${WX.city}  |  ${WX.temp}°C`;
-      $('#wxT').textContent = WX.temp + '°C'; $('#wxCity').textContent = WX.city; $('#wxD').textContent = WX.desc;
-      $('#wx').classList.remove('err');
+      $('#wxT').textContent = WX.temp + '°'; $('#wxCity').textContent = WX.city; $('#wxD').textContent = WX.desc;
       ORB.drawWeatherIcon($('#wxIco'), WX.code, WX.isDay);
-    } else if (WX && WX.error) {
-      $('#wxSub').textContent = 'Bağlantı yok'; $('#wxT').textContent = '—'; $('#wxCity').textContent = WX.city || ''; $('#wxD').textContent = 'Ulaşılamadı';
-    }
+    } else if (WX && WX.error) { $('#wxT').textContent = '—'; $('#wxCity').textContent = WX.city || ''; $('#wxD').textContent = 'Bağlantı yok'; }
     renderProfileLists();
     if (!$('#sheet').hidden && sheetKind) renderSheet(sheetKind);
   }
+  // saat göstergesi
+  function tickClock() {
+    const d = new Date();
+    $('#clockT').textContent = d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+    $('#clockD').textContent = d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', weekday: 'short' });
+    const c = $('#clockRing'), x = c.getContext('2d'), col = getComputedStyle(document.body).getPropertyValue('--c').trim();
+    x.clearRect(0, 0, 96, 96); x.lineWidth = 6; x.lineCap = 'round';
+    x.strokeStyle = 'rgba(255,255,255,.08)'; x.beginPath(); x.arc(48, 48, 38, 0, Math.PI * 2); x.stroke();
+    const frac = (d.getHours() * 60 + d.getMinutes()) / 1440;
+    x.strokeStyle = col; x.beginPath(); x.arc(48, 48, 38, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2); x.stroke();
+  }
+  tickClock(); setInterval(tickClock, 15000);
+  $('#wClock').onclick = () => { tap(); openKind('brief'); };
   $('#cCal').onclick = () => { tap(); if (!PERMS.calendar) N.requestPerm('calendar'); else openKind('calendar'); };
-  $('#cWx').onclick = $('#wx').onclick = () => { tap(); openKind('weather'); };
+  $('#wx').onclick = () => { tap(); openKind('weather'); };
   $('#cTask').onclick = () => { tap(); openKind('tasks'); };
   $('#cSet').onclick = () => { tap(); openPage('settings'); };
-
-  let qi = Math.floor(Math.random() * QUOTES.length);
-  function rotateQuote() { qi = (qi + 1) % QUOTES.length; $('#qText').textContent = `“${QUOTES[qi]}”`; }
-  $('#qText').textContent = `“${QUOTES[qi]}”`;
-  setInterval(rotateQuote, 20000);
-  $('#quote').onclick = rotateQuote;
 
   // ================================================================ alt paneller
   let sheetKind = null;
@@ -379,7 +382,7 @@
     if (v === 'home') setTimeout(ORB.resize, 50);
     N.setPanelOpen(layers.length > 0 || v !== 'home' || !$('#onboard').hidden);
   }
-  $$('#nav button').forEach((b) => (b.onclick = () => { tap(); go(b.dataset.go); }));
+  document.addEventListener('click', (e) => { const b = e.target.closest('[data-go]'); if (b) { tap(); closeDrawer(); closeSheet(); go(b.dataset.go); } });
 
   const layers = [];
   function pushLayer(s) { if (!layers.includes(s)) layers.push(s); N.setPanelOpen(true); }
@@ -403,7 +406,7 @@
   const feed = $('#feed');
   let uBubble = null, mBubble = null;
   function bubble(cls, text) { const d = document.createElement('div'); d.className = 'b ' + cls; d.textContent = text; feed.appendChild(d); trim(); feed.scrollTop = feed.scrollHeight; return d; }
-  function trim() { while (feed.children.length > 40) feed.removeChild(feed.firstChild); }
+  function trim() { while (feed.children.length > 12) feed.removeChild(feed.firstChild); }
   function onUser(t, fin) {
     if (!t) return;
     if (!uBubble) { uBubble = bubble('u live', t); mBubble = null; } else uBubble.textContent = t;
@@ -420,26 +423,28 @@
   function onTool(name, label) { toolEls[name] = bubble('sys', label + '…'); mBubble = null; }
   function onToolDone(name, ok) { const el = toolEls[name]; if (el) { el.classList.add('done'); el.textContent = el.textContent.replace('…', ok ? ' ✓' : ' ✗'); delete toolEls[name]; } }
 
-  const STATE_TXT = { connecting: 'BAĞLANIYOR', listening: 'DİNLİYORUM', thinking: 'DÜŞÜNÜYOR', speaking: 'KONUŞUYOR', idle: '' };
-  const MIC_TXT = { connecting: 'Bağlanıyor…', listening: 'Dinliyorum…', thinking: 'Düşünüyor…', speaking: 'Konuşuyor… (sözünü kesebilirsin)' };
+  const STATE_TXT = { connecting: 'BAĞLANIYOR', listening: 'DİNLİYOR', thinking: 'DÜŞÜNÜYOR', speaking: 'KONUŞUYOR', idle: 'HAZIR' };
+  const MIC_TXT = { connecting: 'Bağlanıyor', listening: 'Dinliyorum · konuş', thinking: 'Düşünüyor', speaking: 'Konuşuyor · sözünü kesebilirsin' };
   function setState(s) {
     liveState = s;
     document.body.dataset.state = s;
     ORB.setState(s);
     const talking = s !== 'idle';
-    if (talking && !document.body.classList.contains('talking')) { document.body.classList.add('talking'); if (!feed.children.length) bubble('sys done', persona().name + ' hazır'); }
-    if (!talking) { document.body.classList.remove('talking'); $('#typeRow').classList.remove('on'); $('#tMute').classList.remove('on'); $('#tCam').classList.remove('on'); uBubble = mBubble = null; }
-    $('#stateLine').textContent = STATE_TXT[s] || '';
-    $('#micLabel').textContent = talking ? (MIC_TXT[s] || '') : `${dat(persona().name)} sor...`;
+    if (talking) document.body.classList.add('talking');
+    if (!talking) { document.body.classList.remove('talking'); setMuteUi(false); setCamUi(false); uBubble = mBubble = null; }
+    $('#hState').textContent = STATE_TXT[s] || 'HAZIR';
+    $('#micLabel').textContent = talking ? (MIC_TXT[s] || '') : `${dat(persona().name)} sor`;
   }
 
   const talk = () => { tap(); if (document.body.dataset.v !== 'home') go('home'); N.talk(); };
   $('#mic').onclick = talk;
   $('#orbHit').onclick = talk;
-  $('#tKb').onclick = () => { tap(); $('#typeRow').classList.toggle('on'); if ($('#typeRow').classList.contains('on')) setTimeout(() => $('#typeIn').focus(), 50); };
   $('#typeRow').onsubmit = (e) => { e.preventDefault(); const v = $('#typeIn').value.trim(); if (!v) return; $('#typeIn').value = ''; N.sendText(v); };
-  $('#tMute').onclick = () => { tap(); const on = !$('#tMute').classList.contains('on'); $('#tMute').classList.toggle('on', on); N.setMute(on); toast(on ? 'Mikrofon kapalı' : 'Mikrofon açık'); };
-  $('#tCam').onclick = () => { tap(); const on = !$('#tCam').classList.contains('on'); N.vision(on); };
+  let muted = false, camOn = false;
+  function setMuteUi(m) { muted = m; $('#micOn').textContent = m ? 'KAPALI' : 'AÇIK'; $('#tMute').classList.toggle('off', m); }
+  function setCamUi(c) { camOn = c; $('#camOn').textContent = c ? 'AÇIK' : 'KAPALI'; }
+  $('#tMute').onclick = () => { tap(); setMuteUi(!muted); N.setMute(muted); };
+  $('#tCam').onclick = () => { tap(); N.vision(!camOn); };
   $('#tPhoto').onclick = () => { tap(); N.pickPhoto(); };
 
   // ================================================================ Hey Koser
@@ -533,7 +538,7 @@
           if (e.code === 'nokey') { openPage('settings'); $('#secAi').open = true; }
           if (e.code === 'key') { openPage('settings'); $('#secAi').open = true; }
           break;
-        case 'vision': $('#tCam').classList.toggle('on', !!e.on); if (e.on) bubble('sys done', 'Kamera açık: göster, anlatayım'); break;
+        case 'vision': setCamUi(!!e.on); if (e.on) bubble('sys done', 'Kamera açık · göster, anlatayım'); break;
         case 'persona': S.persona = e.data.id; applySettings(S); break;
         case 'keyResult':
           if (e.busy) keyMsg(keyTarget, 'busy', 'Anahtar deneniyor…');

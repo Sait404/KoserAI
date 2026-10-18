@@ -22,34 +22,27 @@
 
   function drawBg(t) {
     bctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    const g = bctx.createRadialGradient(W * .5, H * .3, 0, W * .5, H * .35, Math.max(W, H) * .8);
-    g.addColorStop(0, S.persona === 'ultron' ? '#1a0408' : S.persona === 'nova' ? '#1a1205' : '#061a2c');
-    g.addColorStop(.55, S.persona === 'ultron' ? '#080203' : S.persona === 'nova' ? '#080602' : '#030b14');
-    g.addColorStop(1, '#010306');
+    bctx.fillStyle = '#010204'; bctx.fillRect(0, 0, W, H);
+    const g = bctx.createRadialGradient(W * .5, H * .45, 0, W * .5, H * .45, Math.max(W, H) * .7);
+    g.addColorStop(0, A(.07)); g.addColorStop(.5, A(.02)); g.addColorStop(1, 'rgba(0,0,0,0)');
     bctx.fillStyle = g; bctx.fillRect(0, 0, W, H);
-    // ince çapraz ışık çizgileri
-    bctx.save(); bctx.globalAlpha = .07; bctx.strokeStyle = S.col.c; bctx.lineWidth = 1;
-    for (let i = 0; i < 6; i++) {
-      const x = (i / 6) * W * 1.4 - W * .2 + Math.sin(t * .05 + i) * 10;
-      bctx.beginPath(); bctx.moveTo(x, 0); bctx.lineTo(x - H * .35, H); bctx.stroke();
-    }
-    bctx.restore();
-    // ızgara noktaları
-    bctx.fillStyle = A(.06);
-    for (let y = 20; y < H; y += 34) for (let x = (y / 34 % 2) * 17; x < W; x += 34) bctx.fillRect(x, y, 1.2, 1.2);
-    // parçacıklar
+    // çok hafif ızgara
+    bctx.strokeStyle = A(.035); bctx.lineWidth = 1; bctx.beginPath();
+    for (let x = (W % 40) / 2; x < W; x += 40) { bctx.moveTo(x, 0); bctx.lineTo(x, H); }
+    for (let y = 0; y < H; y += 40) { bctx.moveTo(0, y); bctx.lineTo(W, y); }
+    bctx.stroke();
     for (const p of parts) {
-      p.y -= p.s * 16 * (S.state === 'thinking' ? 3 : 1); if (p.y < -.02) { p.y = 1.02; p.x = Math.random(); }
-      bctx.fillStyle = A(.18 + .25 * (.5 + .5 * Math.sin(t * 1.7 + p.p)));
-      bctx.beginPath(); bctx.arc(p.x * W, p.y * H, p.r, 0, TAU); bctx.fill();
+      p.y -= p.s * 10 * (S.state === 'thinking' ? 3 : 1); if (p.y < -.02) { p.y = 1.02; p.x = Math.random(); }
+      bctx.fillStyle = A(.1 + .18 * (.5 + .5 * Math.sin(t * 1.7 + p.p)));
+      bctx.beginPath(); bctx.arc(p.x * W, p.y * H, p.r * .8, 0, TAU); bctx.fill();
     }
   }
 
   // ---------------------------------------------------------------- orb
   const oc = document.getElementById('orb');
   const octx = oc.getContext('2d');
-  let OW = 0;
-  function sizeOrb() { const r = oc.getBoundingClientRect(); OW = r.width; oc.width = r.width * DPR; oc.height = r.height * DPR; }
+  let OW = 0, OH = 0;
+  function sizeOrb() { const r = oc.getBoundingClientRect(); OW = r.width; OH = r.height; oc.width = r.width * DPR; oc.height = r.height * DPR; }
 
   function arc(ctx, cx, cy, r, a0, a1, w, color, blur) {
     ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r, a0, a1); ctx.lineWidth = w; ctx.strokeStyle = color;
@@ -57,113 +50,69 @@
     ctx.stroke(); ctx.restore();
   }
 
+  // dönen ince yaylar (her birinin kendi yarıçapı, eğimi, hızı)
+  const ARCS = Array.from({ length: 9 }, (_, i) => ({
+    r: .42 + i * .07 + Math.random() * .03, len: .6 + Math.random() * 2.2, sp: (Math.random() * .5 + .15) * (i % 2 ? 1 : -1),
+    tilt: (Math.random() - .5) * 1.4, squash: .55 + Math.random() * .45, ph: Math.random() * TAU, w: .8 + Math.random() * 1.6,
+  }));
+  const DUST = Array.from({ length: 26 }, () => ({ r: .5 + Math.random() * .7, a: Math.random() * TAU, sp: (Math.random() * .3 + .05) * (Math.random() < .5 ? -1 : 1), s: Math.random() * 1.4 + .4 }));
+
   function drawOrb(ctx, cx, cy, R, t, st, L, persona) {
-    const energy = S.energy;
-    const spd = st === 'thinking' ? 1.4 : st === 'connecting' ? .9 : st === 'speaking' ? .35 : .08;
-    const breathe = .5 + .5 * Math.sin(t * 1.4);
-    const glow = 10 + (st === 'idle' ? breathe * 8 : 0) + L * 26 + energy * 18;
-    const pulse = 1 + (st === 'speaking' ? L * .05 : st === 'listening' ? L * .03 : .006 * breathe);
-    ctx.save(); ctx.translate(cx, cy); ctx.scale(pulse, pulse); ctx.translate(-cx, -cy);
+    const E = S.energy;
+    const speed = st === 'thinking' ? 4 : st === 'connecting' ? 2.2 : st === 'speaking' ? 1.4 + L : st === 'listening' ? 1 + L * .8 : .45;
+    const breathe = .5 + .5 * Math.sin(t * 1.3);
+    // ortam ışığı (sahneyi aydınlatan geniş, soluk hale)
+    const amb = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 3.2);
+    amb.addColorStop(0, A(.12 + L * .12 + E * .06)); amb.addColorStop(.35, A(.04)); amb.addColorStop(1, A(0));
+    ctx.fillStyle = amb; ctx.fillRect(cx - R * 3.2, cy - R * 3.2, R * 6.4, R * 6.4);
 
-    // dışa yayılan ışık halkaları (konuşurken)
-    for (const rp of S.ripples) { arc(ctx, cx, cy, R * rp.r, 0, TAU, 2, A(rp.a), 0); }
+    // konuşurken dışa yayılan halkalar
+    for (const rp of S.ripples) { ctx.beginPath(); ctx.arc(cx, cy, R * rp.r, 0, TAU); ctx.lineWidth = 1.2; ctx.strokeStyle = A(rp.a * .7); ctx.stroke(); }
 
-    // dış ince halka + nişan çizgileri
-    arc(ctx, cx, cy, R * 1.0, 0, TAU, 1, A(.35), 0);
-    for (let k = 0; k < 4; k++) {
-      const a = k * Math.PI / 2 - Math.PI / 2;
-      ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * R * 1.02, cy + Math.sin(a) * R * 1.02); ctx.lineTo(cx + Math.cos(a) * R * 1.12, cy + Math.sin(a) * R * 1.12);
-      ctx.strokeStyle = A(.7); ctx.lineWidth = 1.5; ctx.stroke();
-    }
-    // dış ince yaylar (mockup'taki ince parlak kavisler)
-    arc(ctx, cx, cy, R * 1.06, -2.5 + t * spd * .3, -1.7 + t * spd * .3, 1.2, A(.6), 6);
-    arc(ctx, cx, cy, R * 1.06, .7 + t * spd * .3, 1.5 + t * spd * .3, 1.2, A(.6), 6);
-
-    // noktalı çember
-    ctx.save(); ctx.setLineDash([1.5, 5]); arc(ctx, cx, cy, R * .93, 0, TAU, 1.5, A(.45), 0); ctx.restore();
-
-    // ana kalın segmentler
-    const rot = t * spd * .5;
-    const segs = persona === 'ultron'
-      ? [[-2.05, -1.1], [-.45, .45], [1.1, 2.05], [2.7, 3.6]]
-      : [[-2.15, -1.0], [-.32, .32], [1.0, 2.15], [2.82, 3.46]];
-    const segW = R * (.075 + L * .03 + energy * .02);
-    for (const [a0, a1] of segs) {
-      if (persona === 'ultron') {
-        // açılı, kesik parçalar
-        const n = 5, step = (a1 - a0) / n;
-        for (let i = 0; i < n; i++) arc(ctx, cx, cy, R * .8, rot + a0 + i * step + .03, rot + a0 + (i + 1) * step - .03, segW, A(.95), glow);
-      } else {
-        arc(ctx, cx, cy, R * .8, rot + a0, rot + a1, segW, A(.95), glow);
+    // dönen yaylar
+    ctx.save(); ctx.lineCap = 'round';
+    ARCS.forEach((a, i) => {
+      const pull = st === 'thinking' ? .82 + .1 * Math.sin(t * 3 + i) : 1;
+      const rr = R * a.r * pull * (1 + (st === 'speaking' ? L * .12 : st === 'listening' ? L * .07 : 0));
+      const start = a.ph + t * a.sp * speed;
+      const len = a.len * (st === 'idle' ? .8 + .2 * breathe : 1) + (st === 'speaking' ? L * .8 : 0);
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(a.tilt); ctx.scale(1, a.squash);
+      ctx.beginPath(); ctx.arc(0, 0, rr, start, start + len);
+      ctx.restore();
+      const alpha = (.18 + .5 * (1 - i / ARCS.length)) * (st === 'idle' ? .55 + .3 * breathe : .85) + L * .3;
+      ctx.lineWidth = a.w * (1 + L * 1.2 + E * .6);
+      ctx.strokeStyle = A(Math.min(1, alpha));
+      if (persona === 'ultron') ctx.setLineDash([R * .05, R * .03]); else ctx.setLineDash([]);
+      ctx.shadowColor = S.col.c; ctx.shadowBlur = 6 + L * 10;
+      ctx.stroke();
+      if (persona === 'nova') { // yay ucunda parlayan nokta
+        const ex = Math.cos(start + len) * rr, ey = Math.sin(start + len) * rr * a.squash;
+        const cs = Math.cos(a.tilt), sn = Math.sin(a.tilt);
+        ctx.beginPath(); ctx.arc(cx + ex * cs - ey * sn, cy + ex * sn + ey * cs, 2 + L * 2, 0, TAU); ctx.fillStyle = S.col.hot; ctx.fill();
       }
-      arc(ctx, cx, cy, R * .8, rot + a0, rot + a1, segW * .35, S.col.hot, 0);
-    }
-    // segmentlerin üstünde ince ışık
-    arc(ctx, cx, cy, R * .88, 0, TAU, 1, A(.25), 0);
+    });
+    ctx.setLineDash([]); ctx.restore();
 
-    // tik halkası (ters döner)
-    ctx.save(); ctx.translate(cx, cy); ctx.rotate(-t * spd * .7);
-    const ticks = 90;
-    for (let i = 0; i < ticks; i++) {
-      const a = (i / ticks) * TAU, long = i % 5 === 0;
-      const r0 = R * .64, r1 = R * (long ? .705 : .68);
-      ctx.beginPath(); ctx.moveTo(Math.cos(a) * r0, Math.sin(a) * r0); ctx.lineTo(Math.cos(a) * r1, Math.sin(a) * r1);
-      ctx.strokeStyle = A(long ? .6 : .3); ctx.lineWidth = long ? 1.4 : 1; ctx.stroke();
-    }
-    ctx.restore();
-
-    // dinlerken/konuşurken iç dalga halkası
-    if (st === 'listening' || st === 'speaking') {
-      const n = 120, amp = R * (.012 + L * (st === 'speaking' ? .07 : .05));
-      ctx.beginPath();
-      for (let i = 0; i <= n; i++) {
-        const a = (i / n) * TAU;
-        let v = Math.sin(a * 6 + t * 5) * .5 + Math.sin(a * 11 - t * 7) * .3 + Math.sin(a * 17 + t * 9) * .2;
-        if (persona === 'ultron') v = Math.sign(v) * Math.pow(Math.abs(v), .5);
-        const rr = R * .6 + v * amp;
-        const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr;
-        i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
-      }
-      ctx.closePath(); ctx.lineWidth = 1.6; ctx.strokeStyle = A(.85); ctx.shadowColor = S.col.c; ctx.shadowBlur = 8; ctx.stroke(); ctx.shadowBlur = 0;
+    // toz parçacıkları
+    for (const d of DUST) {
+      d.a += d.sp * .01 * speed;
+      const rr = R * d.r * (st === 'thinking' ? .75 : 1);
+      ctx.fillStyle = A(.25 + .35 * Math.abs(Math.sin(t + d.a)));
+      ctx.beginPath(); ctx.arc(cx + Math.cos(d.a) * rr * 1.25, cy + Math.sin(d.a) * rr * .9, d.s, 0, TAU); ctx.fill();
     }
 
-    // iç çift halka
-    arc(ctx, cx, cy, R * .56, 0, TAU, 2.2, A(.9), 12 + L * 14);
-    arc(ctx, cx, cy, R * .52, 0, TAU, 1, A(.4), 0);
-
-    // düşünme: enerji taraması + içe akan parçacıklar
-    if (st === 'thinking' || st === 'connecting') {
-      const a = t * (st === 'thinking' ? 4.2 : 2.4);
-      arc(ctx, cx, cy, R * .73, a, a + 1.1, 3, S.col.hot, 14);
-      arc(ctx, cx, cy, R * .73, a + Math.PI, a + Math.PI + 1.1, 3, S.col.hot, 14);
-      for (let i = 0; i < 14; i++) {
-        const ph = ((t * .9 + i / 14) % 1);
-        const aa = i * 2.4 + t * .6, rr = R * (.95 - ph * .45);
-        ctx.fillStyle = A(.9 * ph); ctx.beginPath(); ctx.arc(cx + Math.cos(aa) * rr, cy + Math.sin(aa) * rr, 1.6, 0, TAU); ctx.fill();
-      }
-    }
-
-    // nova: yörüngede dönen ışık noktaları
-    if (persona === 'nova') {
-      for (let i = 0; i < 3; i++) {
-        const a = t * (.6 + i * .25) * (st === 'thinking' ? 3 : 1) + i * 2.1;
-        const x = cx + Math.cos(a) * R * .93, y = cy + Math.sin(a) * R * .93;
-        ctx.beginPath(); ctx.arc(x, y, 3.2 - i * .6, 0, TAU); ctx.fillStyle = S.col.hot; ctx.shadowColor = S.col.c; ctx.shadowBlur = 12; ctx.fill(); ctx.shadowBlur = 0;
-      }
-    }
-    // ultron: dönen üçgen
-    if (persona === 'ultron') {
-      ctx.save(); ctx.translate(cx, cy); ctx.rotate(-t * .2);
-      ctx.beginPath();
-      for (let i = 0; i <= 3; i++) { const a = (i / 3) * TAU - Math.PI / 2; const x = Math.cos(a) * R * .48, y = Math.sin(a) * R * .48; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
-      ctx.strokeStyle = A(.35); ctx.lineWidth = 1; ctx.stroke(); ctx.restore();
-    }
-
-    // merkez disk
-    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * .5);
-    g.addColorStop(0, A(.22 + L * .25 + energy * .2)); g.addColorStop(.6, 'rgba(2,8,14,.92)'); g.addColorStop(1, 'rgba(2,8,14,.6)');
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R * .5, 0, TAU); ctx.fill();
-    ctx.restore();
+    // çekirdek: parlayan küre
+    const flick = 1 + (Math.random() - .5) * .03 * (st === 'idle' ? .3 : 1);
+    const core = R * (.11 + L * .1 + E * .03 + breathe * .01) * flick;
+    const halo = ctx.createRadialGradient(cx, cy, 0, cx, cy, core * 6);
+    halo.addColorStop(0, A(.7 + L * .3)); halo.addColorStop(.18, A(.3 + L * .2)); halo.addColorStop(.5, A(.07)); halo.addColorStop(1, A(0));
+    ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(cx, cy, core * 6, 0, TAU); ctx.fill();
+    const g = ctx.createRadialGradient(cx - core * .25, cy - core * .25, 0, cx, cy, core);
+    g.addColorStop(0, '#ffffff'); g.addColorStop(.35, S.col.hot); g.addColorStop(.75, S.col.c2); g.addColorStop(1, A(.0));
+    ctx.fillStyle = g; ctx.shadowColor = S.col.c; ctx.shadowBlur = 30 + L * 30;
+    ctx.beginPath(); ctx.arc(cx, cy, core, 0, TAU); ctx.fill(); ctx.shadowBlur = 0;
+    // ultron: merkezde dikey "göz" yarığı
+    if (persona === 'ultron') { ctx.fillStyle = 'rgba(40,0,4,.55)'; ctx.fillRect(cx - core * .08, cy - core * .7, core * .16, core * 1.4); }
   }
 
   function frame(now) {
@@ -173,15 +122,15 @@
     const wantE = S.state === 'thinking' ? 1 : S.state === 'speaking' ? .5 : 0;
     S.energy += (wantE - S.energy) * .05;
     // dalgalar
-    if (S.state === 'speaking' && S.level > .28 && now - S.lastRipple > 260) { S.ripples.push({ r: .8, a: .55 }); S.lastRipple = now; }
-    S.ripples.forEach((r) => { r.r += .012; r.a *= .955; });
-    S.ripples = S.ripples.filter((r) => r.a > .03 && r.r < 1.35);
+    if (S.state === 'speaking' && S.level > .3 && now - S.lastRipple > 320) { S.ripples.push({ r: .35, a: .5 }); S.lastRipple = now; }
+    S.ripples.forEach((r) => { r.r += .014; r.a *= .955; });
+    S.ripples = S.ripples.filter((r) => r.a > .03 && r.r < 1.5);
 
     drawBg(t);
     if (OW > 0 && document.body.dataset.v === 'home') {
       octx.setTransform(DPR, 0, 0, DPR, 0, 0);
-      octx.clearRect(0, 0, OW, OW);
-      drawOrb(octx, OW / 2, OW / 2, OW / 2 * .74, t, S.state, S.level, S.persona);
+      octx.clearRect(0, 0, OW, OH);
+      drawOrb(octx, OW / 2, OH / 2, Math.min(OW, OH) / 2 * .78, t, S.state, S.level, S.persona);
     }
     requestAnimationFrame(frame);
   }

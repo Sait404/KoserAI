@@ -57,92 +57,49 @@
 <main id="views">
   <!-- ===================================== ANA SAYFA -->
   <section class="view on" id="home">
-    <div class="top">
-      <button class="burger" id="btnMenu" aria-label="Menü"><span><i></i><i></i><i></i></span></button>
-      <div class="brand">
-        <svg class="k"><use href="#K"/></svg>
-        <div class="name pName">KOSER</div>
-        <div class="tag pTag">DAHA İYİ BİR YARIN İÇİN</div>
+    <header class="hbar">
+      <div class="hl"><span class="wm pName">KOSER</span><span class="hst" id="hState">HAZIR</span></div>
+      <div class="hr">
+        <button class="hb" id="tMute">MİKROFON <b id="micOn">AÇIK</b></button>
+        <button class="hb" id="tCam">KAMERA <b id="camOn">KAPALI</b></button>
+        <button class="hi" id="btnMenu" aria-label="Paneller"><svg><use href="#i-apps"/></svg></button>
+        <button class="hi" id="cSet" aria-label="Ayarlar"><svg><use href="#i-set"/></svg></button>
       </div>
-      <button class="wx" id="wx">
-        <canvas class="ico" id="wxIco" width="76" height="76"></canvas>
-        <span class="t" id="wxT">--°</span>
-        <span class="c"><svg width="11" height="11" style="stroke:var(--c);fill:none;stroke-width:2.4"><use href="#i-pin"/></svg><span id="wxCity">—</span></span>
-        <span class="d" id="wxD">Yükleniyor</span>
-      </button>
+    </header>
+
+    <div class="widgets">
+      <button class="wg" id="wClock"><canvas id="clockRing" width="96" height="96"></canvas><span class="wv" id="clockT">--:--</span><span class="wl" id="clockD">—</span></button>
+      <button class="wg" id="wx"><canvas class="ico" id="wxIco" width="76" height="76"></canvas><span class="wv" id="wxT">--°</span><span class="wl"><span id="wxCity">—</span> · <span id="wxD">—</span></span></button>
+      <button class="wg" id="cCal"><span class="wk">TAKVİM</span><span class="wv" id="calN">—</span><span class="wl" id="calSub">—</span></button>
+      <button class="wg" id="cTask"><span class="wk">GÖREVLER</span><span class="wv" id="taskN">—</span><span class="wl" id="taskSub">—</span></button>
     </div>
 
     <div id="orbBox">
       <canvas id="orb"></canvas>
       <button id="orbHit" aria-label="Konuş"></button>
-      <div class="orbCenter">
-        <svg class="k"><use href="#K"/></svg>
-        <div class="n pName">KOSER</div>
-      </div>
     </div>
 
-    <div class="under">
-      <p id="motto">Hedeflerine odaklan,<br>geri kalan her şey yoluna girer.</p>
-      <p id="stateLine">BAĞLANIYOR</p>
-    </div>
+    <div id="feed" aria-live="polite"></div>
+    <p id="motto">Dokun ya da <b>"Hey Koser"</b> de</p>
 
-    <div id="homeCards">
-      <div class="cards">
-        <button class="card" id="cCal"><svg class="i"><use href="#i-cal"/></svg><span class="tx"><b>Takvim</b><small id="calSub">Bugünün planlarını gör</small></span><svg class="chev"><use href="#i-chev"/></svg></button>
-        <button class="card" id="cWx"><svg class="i"><use href="#i-wx"/></svg><span class="tx"><b>Hava Durumu</b><small id="wxSub">—</small></span><svg class="chev"><use href="#i-chev"/></svg></button>
-        <button class="card" id="cTask"><svg class="i"><use href="#i-task"/></svg><span class="tx"><b>Görevler</b><small id="taskSub">Bekleyen işlerin</small></span><svg class="chev"><use href="#i-chev"/></svg></button>
-        <button class="card" id="cSet"><svg class="i"><use href="#i-set"/></svg><span class="tx"><b>Ayarlar</b><small>Kişiselleştir</small></span><svg class="chev"><use href="#i-chev"/></svg></button>
-      </div>
-      <div class="quote" id="quote">
-        <svg class="m" viewBox="0 0 300 120" preserveAspectRatio="xMaxYMax slice">
-          <defs>
-            <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:rgba(var(--rgb),0)"/><stop offset="1" style="stop-color:rgba(var(--rgb),.18)"/></linearGradient>
-            <linearGradient id="mt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:rgba(var(--rgb),.55)"/><stop offset=".25" stop-color="#06192b"/><stop offset="1" stop-color="#020a12"/></linearGradient>
-            <linearGradient id="fade" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000"/><stop offset=".35" stop-color="#fff"/></linearGradient>
-            <mask id="fm"><rect width="300" height="120" fill="url(#fade)"/></mask>
-          </defs>
-          <g mask="url(#fm)">
-            <rect width="300" height="120" fill="url(#sky)"/>
-            <g style="fill:var(--hot)" opacity=".7"><circle cx="150" cy="18" r=".8"/><circle cx="210" cy="10" r=".6"/><circle cx="250" cy="28" r=".9"/><circle cx="185" cy="36" r=".5"/><circle cx="280" cy="14" r=".7"/><circle cx="120" cy="30" r=".5"/></g>
-            <path d="M60 120 L120 82 L150 92 L190 60 L215 74 L240 52 L270 70 L300 58 V120z" fill="#041322" opacity=".9"/>
-            <path d="M90 120 L150 96 L178 102 L215 70 L232 80 L252 66 L300 92 V120z" fill="url(#mt)"/>
-            <path d="M215 70 L232 80 L252 66" fill="none" style="stroke:var(--c)" stroke-width=".8" opacity=".8"/>
-          </g>
-        </svg>
-        <span class="bar"></span>
-        <p id="qText">“Disiplin, özgürlüğün anahtarıdır.”</p>
-        <span id="qBy">- Koser</span>
-      </div>
-    </div>
-
-    <!-- konuşma -->
-    <div id="talk">
-      <div class="talkBox" id="feed"></div>
-      <form id="typeRow" autocomplete="off"><input id="typeIn" placeholder="Yaz…" enterkeyhint="send"><button>GÖNDER</button></form>
-      <div class="tools">
-        <button class="tbtn" id="tMute" aria-label="Sessize al"><svg><use href="#i-mute"/></svg></button>
-        <button class="tbtn" id="tKb" aria-label="Yaz"><svg><use href="#i-kb"/></svg></button>
-        <button class="tbtn" id="tCam" aria-label="Kamera"><svg><use href="#i-eye"/></svg></button>
-        <button class="tbtn" id="tPhoto" aria-label="Fotoğraf"><svg><use href="#i-photo"/></svg></button>
-      </div>
-    </div>
-    <!-- mikrofon -->
-    <div id="micWrap">
-      <button id="mic" aria-label="Koser'e sor"><svg class="mi"><use href="#i-mic"/></svg><svg class="stop"><use href="#i-stop"/></svg></button>
-      <span id="micLabel">Koser'e sor...</span>
-    </div>
+    <form class="dock" id="typeRow" autocomplete="off">
+      <button type="button" class="dk" id="tPhoto" aria-label="Fotoğraf"><svg><use href="#i-photo"/></svg></button>
+      <input id="typeIn" placeholder="Yaz ya da konuş" enterkeyhint="send">
+      <button type="button" class="dk mic" id="mic" aria-label="Konuş"><svg class="mi"><use href="#i-mic"/></svg><svg class="stop"><use href="#i-stop"/></svg></button>
+    </form>
+    <div id="micLabel">—</div>
   </section>
 
   <!-- ===================================== UYGULAMALAR -->
   <section class="view" id="apps">
-    <div class="h1">UYGULAMALAR</div>
+    <div class="vhead"><button class="back" data-go="home">‹</button><div class="h1">UYGULAMALAR</div></div>
     <p class="sub">Koser'in yetenekleri. Hepsini sesle de kullanabilirsin.</p>
     <div class="grid3" id="appGrid"></div>
   </section>
 
   <!-- ===================================== HIZLI ERİŞİM -->
   <section class="view" id="quick">
-    <div class="h1">HIZLI ERİŞİM</div>
+    <div class="vhead"><button class="back" data-go="home">‹</button><div class="h1">HIZLI ERİŞİM</div></div>
     <p class="sub">Dokun, Koser hemen yapsın.</p>
     <div class="chips" id="quickChips"></div>
     <div class="sect">Kestirmelerim</div>
@@ -153,6 +110,7 @@
 
   <!-- ===================================== PROFİL -->
   <section class="view" id="profile">
+    <div class="vhead"><button class="back" data-go="home">‹</button><div class="h1">PROFİL</div></div>
     <div class="prof">
       <div class="avatar" id="avatar">S</div>
       <div style="flex:1;min-width:0"><b id="profName">Sait</b><small id="profCity">—</small></div>
@@ -171,13 +129,7 @@
 
 
 
-<!-- alt menü -->
-<nav id="nav">
-  <button data-go="home" class="on"><svg><use href="#i-home"/></svg>Ana Sayfa</button>
-  <button data-go="apps"><svg><use href="#i-apps"/></svg>Uygulamalar</button>
-  <button data-go="quick"><svg><use href="#i-quick"/></svg>Hızlı Erişim</button>
-  <button data-go="profile"><svg><use href="#i-user"/></svg>Profil</button>
-</nav>
+
 
 <!-- ===================================== YAN MENÜ -->
 <div id="drawer" hidden>
@@ -186,6 +138,10 @@
     <div class="sect" style="margin-top:0">Karakter</div>
     <div class="personas" id="drawerPersonas"></div>
     <div class="sect">Menü</div>
+    <button class="dl" data-go="apps"><svg><use href="#i-apps"/></svg>Uygulamalar</button>
+    <button class="dl" data-go="quick"><svg><use href="#i-quick"/></svg>Hızlı erişim</button>
+    <button class="dl" data-go="profile"><svg><use href="#i-user"/></svg>Profil ve karakterler</button>
+    <button class="dl" data-sheet="tv"><svg><use href="#i-tv"/></svg>TV kumandası</button>
     <button class="dl" data-sheet="brief"><svg><use href="#i-brief"/></svg>Günlük özet</button>
     <button class="dl" data-sheet="tasks"><svg><use href="#i-task"/></svg>Görevler</button>
     <button class="dl" data-sheet="reminders"><svg><use href="#i-bell"/></svg>Hatırlatıcılar</button>
