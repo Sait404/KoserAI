@@ -17,7 +17,8 @@
   const bctx = bg.getContext('2d');
   let W = 0, H = 0, DPR = 1;
   const parts = Array.from({ length: 40 }, () => ({ x: Math.random(), y: Math.random(), r: Math.random() * 1.3 + .3, s: Math.random() * .00018 + .00004, p: Math.random() * TAU }));
-  function resize() { DPR = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; bg.width = W * DPR; bg.height = H * DPR; sizeOrb(); }
+  function resize() { DPR = Math.min(devicePixelRatio || 1, 1.3); W = innerWidth; H = innerHeight; bg.width = W * DPR; bg.height = H * DPR; sizeOrb(); bgDirty = true; }
+  let bgDirty = true;
   addEventListener('resize', resize);
 
   function drawBg(t) {
@@ -31,11 +32,6 @@
     for (let x = (W % 40) / 2; x < W; x += 40) { bctx.moveTo(x, 0); bctx.lineTo(x, H); }
     for (let y = 0; y < H; y += 40) { bctx.moveTo(0, y); bctx.lineTo(W, y); }
     bctx.stroke();
-    for (const p of parts) {
-      p.y -= p.s * 10 * (S.state === 'thinking' ? 3 : 1); if (p.y < -.02) { p.y = 1.02; p.x = Math.random(); }
-      bctx.fillStyle = A(.1 + .18 * (.5 + .5 * Math.sin(t * 1.7 + p.p)));
-      bctx.beginPath(); bctx.arc(p.x * W, p.y * H, p.r * .8, 0, TAU); bctx.fill();
-    }
   }
 
   // ---------------------------------------------------------------- orb
@@ -55,7 +51,7 @@
     r: .42 + i * .07 + Math.random() * .03, len: .6 + Math.random() * 2.2, sp: (Math.random() * .5 + .15) * (i % 2 ? 1 : -1),
     tilt: (Math.random() - .5) * 1.4, squash: .55 + Math.random() * .45, ph: Math.random() * TAU, w: .8 + Math.random() * 1.6,
   }));
-  const DUST = Array.from({ length: 26 }, () => ({ r: .5 + Math.random() * .7, a: Math.random() * TAU, sp: (Math.random() * .3 + .05) * (Math.random() < .5 ? -1 : 1), s: Math.random() * 1.4 + .4 }));
+  const DUST = Array.from({ length: 18 }, () => ({ r: .5 + Math.random() * .7, a: Math.random() * TAU, sp: (Math.random() * .3 + .05) * (Math.random() < .5 ? -1 : 1), s: Math.random() * 1.4 + .4 }));
 
   function drawOrb(ctx, cx, cy, R, t, st, L, persona) {
     const E = S.energy;
@@ -83,8 +79,8 @@
       ctx.lineWidth = a.w * (1 + L * 1.2 + E * .6);
       ctx.strokeStyle = A(Math.min(1, alpha));
       if (persona === 'ultron') ctx.setLineDash([R * .05, R * .03]); else ctx.setLineDash([]);
-      ctx.shadowColor = S.col.c; ctx.shadowBlur = 6 + L * 10;
       ctx.stroke();
+      ctx.lineWidth = a.w * (3.5 + L * 3); ctx.strokeStyle = A(Math.min(1, alpha) * .18); ctx.stroke();
       if (persona === 'nova') { // yay ucunda parlayan nokta
         const ex = Math.cos(start + len) * rr, ey = Math.sin(start + len) * rr * a.squash;
         const cs = Math.cos(a.tilt), sn = Math.sin(a.tilt);
@@ -109,13 +105,17 @@
     ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(cx, cy, core * 6, 0, TAU); ctx.fill();
     const g = ctx.createRadialGradient(cx - core * .25, cy - core * .25, 0, cx, cy, core);
     g.addColorStop(0, '#ffffff'); g.addColorStop(.35, S.col.hot); g.addColorStop(.75, S.col.c2); g.addColorStop(1, A(.0));
-    ctx.fillStyle = g; ctx.shadowColor = S.col.c; ctx.shadowBlur = 30 + L * 30;
-    ctx.beginPath(); ctx.arc(cx, cy, core, 0, TAU); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(cx, cy, core, 0, TAU); ctx.fill();
     // ultron: merkezde dikey "göz" yarığı
     if (persona === 'ultron') { ctx.fillStyle = 'rgba(40,0,4,.55)'; ctx.fillRect(cx - core * .08, cy - core * .7, core * .16, core * 1.4); }
   }
 
+  let lastF = 0;
   function frame(now) {
+    if (document.hidden) { requestAnimationFrame(frame); return; }
+    if (S.state === 'idle' && now - lastF < 32) { requestAnimationFrame(frame); return; }
+    lastF = now;
     const t = (now - S.t0) / 1000;
     S.level += (S.target - S.level) * .3;
     S.target *= .9;
@@ -126,7 +126,7 @@
     S.ripples.forEach((r) => { r.r += .014; r.a *= .955; });
     S.ripples = S.ripples.filter((r) => r.a > .03 && r.r < 1.5);
 
-    drawBg(t);
+    if (bgDirty) { drawBg(t); bgDirty = false; }
     if (OW > 0 && document.body.dataset.v === 'home') {
       octx.setTransform(DPR, 0, 0, DPR, 0, 0);
       octx.clearRect(0, 0, OW, OH);
@@ -167,7 +167,7 @@
   window.ORB = {
     setState(s) { S.state = s; },
     setLevel(v) { S.target = Math.max(S.target, v); },
-    setPersona(p) { S.persona = p; readColors(); },
+    setPersona(p) { S.persona = p; readColors(); bgDirty = true; },
     drawOrb(ctx, cx, cy, R, t, st, L, p) { drawOrb(ctx, cx, cy, R, t, st, L, p || S.persona); },
     drawWeatherIcon, resize: sizeOrb,
   };

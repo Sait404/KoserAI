@@ -10,7 +10,7 @@
 
   let S = {}, PERMS = {}, DATA = { tasks: [], reminders: [], memories: [], log: [], today: [], tomorrow: [], calendarPerm: false }, WX = null;
   let liveState = 'idle';
-  const tap = () => { try { N.vibrate(); } catch (e) {} };
+  const tap = () => { try { N.vibrate(); } catch (e) {} SFX.play('tap'); };
 
   const MOTTO = {
     koser: 'Hedeflerine odaklan,<br>geri kalan her şey yoluna girer.',
@@ -32,6 +32,7 @@
     const p = persona();
     document.body.dataset.p = p.id;
     ORB.setPersona(p.id);
+    SFX.setPersona(p.id); SFX.setEnabled(s.sounds !== false);
     $$('.pName').forEach((e) => (e.textContent = p.name));
     $$('.pTag').forEach((e) => (e.textContent = p.tagline));
     $('#motto').innerHTML = `Dokun ya da <b>"${esc(cap(s.wakePhrase || 'hey koser'))}"</b> de`;
@@ -252,7 +253,7 @@
   function closeSheet() { $('#sheet').hidden = true; sheetKind = null; popLayer('#sheet'); }
   $('#sheetClose').onclick = closeSheet;
   $('#sheet').addEventListener('click', (e) => { if (e.target.id === 'sheet') closeSheet(); });
-  function openKind(k) { sheetKind = k; renderSheet(k); $('#sheet').hidden = false; pushLayer('#sheet'); }
+  function openKind(k) { SFX.play('open'); sheetKind = k; renderSheet(k); $('#sheet').hidden = false; pushLayer('#sheet'); }
 
   function renderSheet(k) {
     const T = { tasks: 'Görevler', reminders: 'Hatırlatıcılar', calendar: 'Takvim', memory: 'Hafıza', brief: 'Günlük özet', log: 'Koser ne yaptı', weather: 'Hava durumu', tv: 'TV kumandası' };
@@ -420,12 +421,21 @@
     feed.scrollTop = feed.scrollHeight;
   }
   const toolEls = {};
-  function onTool(name, label) { toolEls[name] = bubble('sys', label + '…'); mBubble = null; }
-  function onToolDone(name, ok) { const el = toolEls[name]; if (el) { el.classList.add('done'); el.textContent = el.textContent.replace('…', ok ? ' ✓' : ' ✗'); delete toolEls[name]; } }
+  function onTool(name, label) {
+    SFX.play('tool'); toolEls[name] = bubble('sys', label + '…'); mBubble = null; }
+  function onToolDone(name, ok) {
+    SFX.play(ok ? 'done' : 'error'); const el = toolEls[name]; if (el) { el.classList.add('done'); el.textContent = el.textContent.replace('…', ok ? ' ✓' : ' ✗'); delete toolEls[name]; } }
 
   const STATE_TXT = { connecting: 'BAĞLANIYOR', listening: 'DİNLİYOR', thinking: 'DÜŞÜNÜYOR', speaking: 'KONUŞUYOR', idle: 'HAZIR' };
   const MIC_TXT = { connecting: 'Bağlanıyor', listening: 'Dinliyorum · konuş', thinking: 'Düşünüyor', speaking: 'Konuşuyor · sözünü kesebilirsin' };
   function setState(s) {
+    const prev = liveState;
+    if (s !== prev) {
+      if (prev === 'idle' && (s === 'connecting' || s === 'listening')) SFX.play('wake');
+      else if (s === 'listening' && prev === 'connecting') SFX.play('listen');
+      else if (s === 'thinking') SFX.play('think');
+      else if (s === 'idle') SFX.play('end');
+    }
     liveState = s;
     document.body.dataset.state = s;
     ORB.setState(s);
@@ -533,7 +543,8 @@
         case 'tool_done': onToolDone(e.name, e.ok); break;
         case 'hint': bubble('sys done', e.text); break;
         case 'live_error':
-          if (document.body.classList.contains('talking')) bubble('err', e.text);
+          SFX.play('error');
+          if (feed.lastElementChild?.textContent !== e.text) bubble('err', e.text);
           toast(e.text);
           if (e.code === 'nokey') { openPage('settings'); $('#secAi').open = true; }
           if (e.code === 'key') { openPage('settings'); $('#secAi').open = true; }

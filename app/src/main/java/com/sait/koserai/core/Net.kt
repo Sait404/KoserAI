@@ -89,7 +89,7 @@ object AiClient {
     private fun systemPrompt(): String {
         val user = Prefs.str("userName").ifBlank { "efendim" }
         return """
-Sen KoserAI'sın, kısaca Koser. Sait tarafından geliştirilmiş, Türkçe konuşan, zeki, sadık ve biraz esprili bir kişisel yapay zekâ asistanısın.
+Sen ${com.sait.koserai.data.Persona.active().name}'sın: KoserAI uygulamasında yaşayan, Sait tarafından geliştirilmiş, Türkçe konuşan kişisel yapay zekâ asistanı. Kişiliğin: ${com.sait.koserai.data.Persona.active().style}
 Kullanıcıya "$user" diye hitap et. Cevapların sesli okunacak: kısa ve doğal konuş (genelde 1-3 cümle), madde işareti, emoji, markdown kullanma.
 Seni kim yaptı diye sorulursa: "Beni Sait geliştirdi." de.
 
@@ -128,29 +128,36 @@ Her zaman şu JSON biçiminde cevap ver: {"say":"söyleyeceğin cümle","action"
         val body = JSONObject()
             .put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", systemPrompt()))))
             .put("contents", contents)
-            .put("generationConfig", JSONObject().put("responseMimeType", "application/json").put("temperature", 0.7).put("maxOutputTokens", 600))
+            .put("generationConfig", JSONObject().put("responseMimeType", "application/json").put("temperature", 0.7).put("maxOutputTokens", 2048))
 
-        val req = Request.Builder()
-            .url("https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent")
-            .header("x-goog-api-key", key)
-            .post(body.toString().toRequestBody("application/json".toMediaType()))
-            .build()
-        Net.http.newCall(req).execute().use { r ->
-            val s = r.body?.string() ?: ""
-            if (!r.isSuccessful) {
-                history.removeAt(history.size - 1)
-                val msg = try { JSONObject(s).getJSONObject("error").optString("message") } catch (e: Exception) { s.take(120) }
-                throw RuntimeException(if (r.code == 400 || r.code == 403) "Gemini anahtarı geçersiz görünüyor." else "Yapay zekâ hatası: $msg")
+        val tried = (listOf(model) + listOf("gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-flash-lite-latest")).distinct()
+        var lastErr = ""
+        for (m in tried) {
+            val req = Request.Builder()
+                .url("https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent")
+                .header("x-goog-api-key", key)
+                .post(body.toString().toRequestBody("application/json".toMediaType()))
+                .build()
+            val result: AiReply? = Net.http.newCall(req).execute().use { r ->
+                val txt = r.body?.string() ?: ""
+                if (!r.isSuccessful) {
+                    lastErr = try { JSONObject(txt).getJSONObject("error").optString("message") } catch (e: Exception) { txt.take(120) }
+                    if (r.code == 400 && lastErr.contains("API key", true)) { history.removeAt(history.size - 1); throw RuntimeException("Gemini anahtarı geçersiz görünüyor.") }
+                    null // 429 kota / 404 model: sıradaki modeli dene
+                } else {
+                    val out = JSONObject(txt).getJSONArray("candidates").getJSONObject(0)
+                        .getJSONObject("content").getJSONArray("parts").getJSONObject(0).getString("text")
+                    history.add("model" to out)
+                    try {
+                        val j = JSONObject(out.trim().removePrefix("```json").removePrefix("```").removeSuffix("```"))
+                        AiReply(j.optString("say", ""), j.optJSONObject("action"))
+                    } catch (e: Exception) { AiReply(out.trim(), null) }
+                }
             }
-            val out = JSONObject(s).getJSONArray("candidates").getJSONObject(0)
-                .getJSONObject("content").getJSONArray("parts").getJSONObject(0).getString("text")
-            val parsed = try {
-                val j = JSONObject(out.trim().removePrefix("```json").removePrefix("```").removeSuffix("```"))
-                AiReply(j.optString("say", ""), j.optJSONObject("action"))
-            } catch (e: Exception) { AiReply(out.trim(), null) }
-            history.add("model" to out)
-            parsed
+            if (result != null) { if (m != model) Prefs.put("geminiModel", m); return@withContext result }
         }
+        history.removeAt(history.size - 1)
+        throw RuntimeException("Gemini şu an cevap vermiyor (kota dolmuş olabilir). " + lastErr.take(120))
     }
 
     class NoKeyException : Exception("no key")

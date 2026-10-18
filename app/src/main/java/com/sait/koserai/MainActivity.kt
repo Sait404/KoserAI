@@ -316,7 +316,7 @@ class MainActivity : ComponentActivity() {
     fun talk(greet: Boolean = false) {
         if (!granted(Manifest.permission.RECORD_AUDIO)) { listenOnReady = true; greetOnReady = greet; requestPerm("mic"); return }
         listenOnReady = false
-        if (Live.hasKey()) {
+        if (Live.hasKey() && (Live.running || !Live.liveBlocked())) {
             voice.stop(); recognizer?.cancel()
             if (Live.running) Live.stop() else Live.start(this, greet = greet)
         } else {
@@ -326,7 +326,7 @@ class MainActivity : ComponentActivity() {
 
     private fun sendText(t: String) {
         if (t.isBlank()) return
-        if (Live.hasKey()) {
+        if (Live.hasKey() && (Live.running || !Live.liveBlocked())) {
             if (Live.running) Live.sendText(t) else Live.start(this, text = t)
         } else {
             voice.stop(); recognizer?.cancel()

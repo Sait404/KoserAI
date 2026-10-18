@@ -80,6 +80,7 @@ object Live {
     private var level = 0
     private var resumeHandle: String? = null
     private var reconnects = 0
+    private var quotaHits = 0
     private var mic: Mic? = null
     private var player: Player? = null
     private val userBuf = StringBuilder()
@@ -102,6 +103,12 @@ object Live {
     // ================================================================ dışarıya açık
 
     fun hasKey() = Prefs.str("geminiKey").isNotBlank()
+
+    /** Kota yüzünden canlı ses şu an kullanılamıyorsa yedek moda geç (20 dk sonra tekrar dener). */
+    fun liveBlocked(): Boolean {
+        val t = Prefs.all().optLong("liveQuotaAt", 0L)
+        return t > 0 && System.currentTimeMillis() - t < 20 * 60_000L
+    }
 
     /** MainActivity'den (ön plandayken) çağrılır. */
     fun start(c: Context, greet: Boolean = false, text: String? = null) {
@@ -205,7 +212,12 @@ object Live {
                     if (modelIdx < models.size - 1) { modelIdx++; level = 0; main.postDelayed({ connect() }, 300); return }
                     return fail("setup", "Gemini bağlantı ayarlarını kabul etmedi." + detail(reason))
                 }
-                "quota" -> return fail("quota", "Gemini kullanım sınırına takıldı. Bir dakika bekleyip tekrar dene." + detail(reason))
+                "quota" -> {
+                    quotaHits++
+                    if (modelIdx < models.size - 1) { modelIdx++; level = 0; main.postDelayed({ connect() }, 300); return }
+                    Prefs.put("liveQuotaAt", System.currentTimeMillis())
+                    return fail("quota", "Bu Gemini anahtarının ücretsiz canlı ses kotası yok ya da bugünlük doldu. Şimdilik yedek modda (yazı modeli + telefon sesi) devam ediyorum." + detail(reason))
+                }
                 "net" -> {
                     if (reconnects < 2) { reconnects++; main.postDelayed({ connect() }, 1200); return }
                     return fail("net", "Gemini'ye bağlanamadım. İnternet bağlantını kontrol et." + detail(t?.message ?: reason))
@@ -340,6 +352,7 @@ object Live {
         reconnects = 0
         Prefs.put("liveModel", models[modelIdx])
         Prefs.put("liveLevel", level)
+        Prefs.put("liveQuotaAt", 0L)
         main.post {
             val c = ctx ?: return@post
             if (mic == null) {
@@ -543,21 +556,26 @@ object Live {
             live.filter { !it.contains("translate") && (it.contains("live") || it.contains("native-audio")) } +
             FALLBACK_MODELS).distinct().take(6)
         var last = ""
+        var quotaAll = false
         for (m in candidates) {
             for (lvl in 0..2) {
                 val (res, why) = probe(key, m, lvl)
                 if (res == "ok") {
-                    Prefs.put("liveModel", m); Prefs.put("liveLevel", lvl)
+                    Prefs.put("liveModel", m); Prefs.put("liveLevel", lvl); Prefs.put("liveQuotaAt", 0L)
                     return@withContext KeyResult(true, "Anahtar çalışıyor ✓ Canlı ses bağlantısı kuruldu ($m).", m, live)
                 }
                 last = why
                 when (res) {
                     "key" -> return@withContext KeyResult(false, "Bu anahtar geçersiz. AI Studio'dan yeniden kopyala." + detail(why), null, live)
-                    "quota" -> return@withContext KeyResult(false, "Anahtar geçerli ama Gemini şu an kullanım sınırı veriyor. Bir dakika sonra tekrar dene." + detail(why), null, live)
+                    "quota" -> { quotaAll = true; break }
                     "invalid" -> continue
                     else -> break
                 }
             }
+        }
+        if (quotaAll) {
+            Prefs.put("liveQuotaAt", System.currentTimeMillis())
+            return@withContext KeyResult(true, "Anahtar çalışıyor ✓ ama bu anahtarın ücretsiz canlı ses kotası yok ya da bugünlük dolmuş. Koser şimdilik yedek modda (Gemini yazı modeli + telefon sesi) konuşacak. Canlı ses için AI Studio'da yeni bir projede yeni anahtar oluşturmayı ya da yarın tekrar denemeyi dene." + detail(last), null, live)
         }
         KeyResult(false, "Anahtar geçerli ama canlı ses bağlantısı kurulamadı. Bu mesajın ekran görüntüsünü gönder." + detail(last), null, live)
     }
